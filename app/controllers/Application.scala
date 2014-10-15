@@ -10,9 +10,9 @@ object Application extends Controller {
     "emotion" -> "a feeling of any kind")
 
   def search(word: String) = Action {
-    state.get(word) map (Ok(_)) getOrElse {
-      NotFound("unknown word!")
-    }
+    state.get(word)
+      .map(Ok(_))
+      .getOrElse(NotFound("unknown word!"))
   }
 
   def index = Action {
