@@ -26,7 +26,18 @@ object Application extends Controller {
       })
   }
 
-  def update(word: String) = Action(parse.text) { request =>
+  def WordFilter(word: String) = 
+    new ActionFilter[Request] with ActionBuilder[Request] {
+      def filter[A](request: Request[A]) = Future {
+        if (state.exists(kv => kv._1 == word))
+          Some(Forbidden(s"The word '$word' already exists"))
+        else
+          None
+      }
+  }
+
+  def update(word: String) = WordFilter(word)(parse.text) { request =>
+    // FIXME: non-atomic operation => concurrency issues
     state = state + (word -> request.body)
     Ok
   }
