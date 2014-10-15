@@ -2,6 +2,8 @@ package controllers
 
 import play.api._
 import play.api.mvc._
+import play.api.libs.ws._
+import play.api.Play.current
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -34,6 +36,12 @@ object Application extends Controller {
         else
           None
       }
+  }
+
+  def naughtyList: Future[List[String]] = {
+    val holder: WSRequestHolder =
+      WS.url(s"http://localhost:9000/assets/bad_words.txt")
+    holder.get map (_.body.lines.toList)
   }
 
   def add(word: String) = WordFilter(word)(parse.text) { request =>
