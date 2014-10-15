@@ -8,7 +8,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 object Application extends Controller {
 
-  val state = Map(
+  var state = Map(
     "code" -> "a collection of laws or rules",
     "emotion" -> "a feeling of any kind")
 
@@ -20,9 +20,15 @@ object Application extends Controller {
     state.get(word)
       .map(definition => Future(Ok(definition)))
       .getOrElse(ws(word) map {
+        // FIXME: consider including a monad transformer here
         case Some(definition) => Ok(definition)
         case _ => NotFound("unknown word!")
       })
+  }
+
+  def update(word: String) = Action(parse.text) { request =>
+    state = state + (word -> request.body)
+    Ok
   }
 
 }
