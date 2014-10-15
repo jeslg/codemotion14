@@ -36,7 +36,7 @@ object Application extends Controller {
       }
   }
 
-  def update(word: String) = WordFilter(word)(parse.text) { request =>
+  def add(word: String) = WordFilter(word)(parse.text) { request =>
     // FIXME: non-atomic operation => concurrency issues
     state = state + (word -> request.body)
     Ok
