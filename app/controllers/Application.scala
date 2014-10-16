@@ -47,7 +47,7 @@ object Application extends Controller {
   // def add(word: String) = WordFilter(word)(parse.text) { request =>
   def add(word: String) = Action.async(parse.text) { request =>
     naughtyList map { list =>
-      list find (request.body contains _) match {
+      list find (request.body.split(" +") contains _) match {
         // FIXME: non-atomic operation => concurrency issues
         case None => {
           state = state + (word -> request.body)
