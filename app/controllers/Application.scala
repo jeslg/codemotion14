@@ -47,7 +47,7 @@ object Application extends Controller {
   def NaughtyFilter = new ActionFilter[Request] with ActionBuilder[Request] {
     def filter[A](request: Request[A]) = naughtyList map { list =>
       list
-        .find(request.asInstanceOf[Request[String]].body.split(" +") contains _) 
+        .find(request.body.toString.split(" +") contains _) 
         .map(bad => Forbidden(s"We think '$bad' doesn't fit here"))
     }
   }
