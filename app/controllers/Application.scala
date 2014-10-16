@@ -44,17 +44,19 @@ object Application extends Controller {
     holder.get map (_.body.lines.toList)
   }
 
-  def add(word: String) = WordFilter(word).async(parse.text) { request =>
-    naughtyList map { list =>
-      list find (request.body.split(" +") contains _) match {
-        case None => {
-          // FIXME: non-atomic operation => concurrency issues
-          state = state + (word -> request.body)
-          Ok
-        }
-        case Some(bad) => Forbidden(s"We think '$bad' doesn't fit here")
-      }
+  def NaughtyFilter = new ActionFilter[Request] with ActionBuilder[Request] {
+    def filter[A](request: Request[A]) = naughtyList map { list =>
+      list
+        .find(request.asInstanceOf[Request[String]].body.split(" +") contains _) 
+        .map(bad => Forbidden(s"We think '$bad' doesn't fit here"))
     }
   }
+
+  def add(word: String) = 
+    (NaughtyFilter andThen WordFilter(word))(parse.text) { request =>
+      // FIXME: non-atomic operation => concurrency issues
+      state = state + (word -> request.body)
+      Ok
+    }
 
 }
