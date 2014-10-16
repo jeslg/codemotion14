@@ -32,7 +32,7 @@ object Application extends Controller {
     new ActionFilter[Request] with ActionBuilder[Request] {
       def filter[A](request: Request[A]) = Future {
         if (state.exists(kv => kv._1 == word))
-          Some(Forbidden(s"The word '$word' already exists"))
+          Some(Forbidden(s"The word '$word' does already exists"))
         else
           None
       }
@@ -44,12 +44,11 @@ object Application extends Controller {
     holder.get map (_.body.lines.toList)
   }
 
-  // def add(word: String) = WordFilter(word)(parse.text) { request =>
-  def add(word: String) = Action.async(parse.text) { request =>
+  def add(word: String) = WordFilter(word).async(parse.text) { request =>
     naughtyList map { list =>
       list find (request.body.split(" +") contains _) match {
-        // FIXME: non-atomic operation => concurrency issues
         case None => {
+          // FIXME: non-atomic operation => concurrency issues
           state = state + (word -> request.body)
           Ok
         }
