@@ -8,5 +8,7 @@ GET    /:word			    controllers.Application.search(word: String)
 
 PUT    /:word			    controllers.Application.add(word: String)
 
+POST   /			    controllers.Application.addPost
+
 # Map static resources from the /public folder to the /assets URL path
 GET     /assets/*file               controllers.Assets.at(path="/public", file)
