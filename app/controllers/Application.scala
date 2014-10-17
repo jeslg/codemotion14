@@ -63,10 +63,12 @@ object Application extends Controller {
       Ok
     }
 
-  def addPost = Action(parse.json) { request =>
-    val json = request.body
-    val word = (json \ "word").as[String]
-    val definition = (json \ "definition").as[String]
+  def jsWordBodyParser = parse.json map { jsv => 
+    ((jsv \ "word").as[String] -> ((jsv \ "definition").as[String]))
+  }
+
+  def addPost = Action(jsWordBodyParser) { request =>
+    val (word, definition) = request.body
     state = state + (word -> definition)
     Ok
   }
