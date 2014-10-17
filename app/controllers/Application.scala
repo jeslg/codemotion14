@@ -2,6 +2,7 @@ package controllers
 
 import play.api._
 import play.api.mvc._
+import play.api.libs.json._
 import play.api.libs.ws._
 import play.api.Play.current
 
@@ -63,11 +64,23 @@ object Application extends Controller {
       Ok
     }
 
-  def jsWordBodyParser = parse.json map { jsv => 
+  def MyFilter[R[x] <: ({type T[x] = Request[(String, String)]})#T[x]] = {
+    new ActionFilter[R] {
+      def filter[A](request: R[A]): Future[Option[Result]] = Future {
+	val word = request.body._1
+	val definition = request.body._2
+	None
+      }
+    }.asInstanceOf[ActionFilter[Request]]
+  }
+
+  val jsWordBodyParser: BodyParser[(String, String)] = parse.json map { jsv => 
     ((jsv \ "word").as[String] -> ((jsv \ "definition").as[String]))
   }
 
-  def addPost = Action(jsWordBodyParser) { request =>
+  type R[x] = ({type S[x] = Request[(String, String)]})#S[x]
+
+  def addPost = (Action andThen MyFilter[R])(jsWordBodyParser) { request =>
     val (word, definition) = request.body
     state = state + (word -> definition)
     Ok
