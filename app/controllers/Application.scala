@@ -38,21 +38,25 @@ object Application extends Controller {
       }
   }
 
+  implicit class WordsOp(s: String) {
+    def words = s.split("[ \n]+")
+  }
+
   def naughtyList: Future[List[String]] = {
     val holder: WSRequestHolder =
       WS.url(s"http://localhost:9000/assets/bad_words.txt")
-    holder.get map (_.body.lines.toList)
+    holder.get map (_.body.words.toList)
   }
 
   def NaughtyFilter = new ActionFilter[Request] with ActionBuilder[Request] {
     def filter[A](request: Request[A]) = naughtyList map { list =>
       list
-        .find(request.body.toString.split(" +") contains _) 
+        .find(request.body.toString.words contains _) 
         .map(bad => Forbidden(s"We think '$bad' doesn't fit here"))
     }
   }
 
-  def add(word: String) = 
+  def add(word: String) =
     (NaughtyFilter andThen WordFilter(word))(parse.text) { request =>
       // FIXME: non-atomic operation => concurrency issues
       state = state + (word -> request.body)
