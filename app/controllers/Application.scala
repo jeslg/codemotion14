@@ -78,12 +78,13 @@ object Application extends Controller {
     ((jsv \ "word").as[String] -> ((jsv \ "definition").as[String]))
   }
 
-  type R[x] = ({type S[x] = Request[(String, String)]})#S[x]
-
-  def addPost = (Action andThen MyFilter[R])(jsWordBodyParser) { request =>
-    val (word, definition) = request.body
-    state = state + (word -> definition)
-    Ok
+  def addPost = {
+    val filter = MyFilter[({type S[x] = Request[(String, String)]})#S]
+    (Action andThen filter)(jsWordBodyParser) { request =>
+      val (word, definition) = request.body
+      state = state + (word -> definition)
+      Ok
+    }
   }
 
 }
