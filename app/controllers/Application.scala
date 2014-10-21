@@ -16,7 +16,12 @@ object Application extends Controller {
     "emotion" -> "a feeling of any kind")
 
    // TODO: web service invocation
-  def ws(word: String): Option[String] = None
+  def ws(word: String): Future[Option[String]] = Future {
+    val wsState = Map(
+      "programming" -> "the process of writing computer programs",
+      "subroutine" -> "a set of instructions designed to perform a frequently used operation within a program")
+    wsState.get(word)
+  }
 
   class WordRequest[A](
     val word: String, 
@@ -29,12 +34,13 @@ object Application extends Controller {
   }
 
   def WordTransducer(word: String) = new ActionRefiner[Request, WordRequest] {
-    def refine[A](request: Request[A]) = Future.successful {
-      state.get(word)
-	.map(WordRequest(word, _, request))
-        .orElse(ws(word).map(WordRequest(word, _, request)))
-	.toRight(NotFound(s"could not find '$word'"))
-    }
+    def refine[A](request: Request[A]) = for {
+      owr <- Future(state.get(word).map(WordRequest(word, _, request)))
+      owr2 <- owr match {
+	case None => ws(word).map(_.map(WordRequest(word, _, request)))
+	case _ => Future.successful(owr)
+      }
+    } yield owr2.toRight(NotFound(s"could not find '$word'"))
   }
 
   implicit class WordsOp(s: String) {
