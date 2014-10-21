@@ -15,28 +15,26 @@ object Application extends Controller {
     "code" -> "a collection of laws or rules",
     "emotion" -> "a feeling of any kind")
 
-  def ws(word: String): Future[Option[String]] = Future {
-    Option("{ ws definition here }") // TODO: web service invocation
+   // TODO: web service invocation
+  def ws(word: String): Option[String] = None
+
+  class WordRequest[A](
+    val word: String, 
+    val definition: String, 
+    request: Request[A]) extends WrappedRequest[A](request)
+
+  object WordRequest {
+    def apply[A](word: String, definition: String, request: Request[A]) =
+      new WordRequest(word, definition, request)
   }
 
-  def search(word: String) = Action.async {
-    state.get(word)
-      .map(definition => Future(Ok(definition)))
-      .getOrElse(ws(word) map {
-        // FIXME: consider including a monad transformer here
-        case Some(definition) => Ok(definition)
-        case _ => NotFound("unknown word!")
-      })
-  }
-
-  def WordFilter(word: String) = 
-    new ActionFilter[Request] with ActionBuilder[Request] {
-      def filter[A](request: Request[A]) = Future {
-        if (state.exists(kv => kv._1 == word))
-          Some(Forbidden(s"The word '$word' does already exists"))
-        else
-          None
-      }
+  def WordTransducer(word: String) = new ActionRefiner[Request, WordRequest] {
+    def refine[A](request: Request[A]) = Future.successful {
+      state.get(word)
+	.map(WordRequest(word, _, request))
+        .orElse(ws(word).map(WordRequest(word, _, request)))
+	.toRight(NotFound(s"could not find '$word'"))
+    }
   }
 
   implicit class WordsOp(s: String) {
@@ -49,42 +47,44 @@ object Application extends Controller {
     holder.get map (_.body.words.toList)
   }
 
-  def NaughtyFilter = new ActionFilter[Request] with ActionBuilder[Request] {
-    def filter[A](request: Request[A]) = naughtyList map { list =>
+  def ParentalFilter = new ActionFilter[WordRequest] {
+    def filter[A](wrequest: WordRequest[A]) = naughtyList map { list =>
       list
-        .find(request.body.toString.words contains _) 
-        .map(bad => Forbidden(s"We think '$bad' doesn't fit here"))
+        .find(wrequest.definition.words contains _)
+        .map(bad => Forbidden(s"parental filter blocked a request"))
     }
   }
 
+  def UpperTransformer = new ActionTransformer[WordRequest, WordRequest] {
+    def transform[A](wrequest: WordRequest[A]) = Future {
+      // FIXME: change this notation
+      WordRequest(wrequest.word, wrequest.definition.toUpperCase, wrequest)
+    }
+  }
+
+  def search(word: String) = 
+    (Action 
+     andThen WordTransducer(word) 
+     andThen ParentalFilter
+     andThen UpperTransformer) { wrequest =>
+    Ok(wrequest.definition)
+  }
+
   def add(word: String) =
-    (NaughtyFilter andThen WordFilter(word))(parse.text) { request =>
+    Action(parse.text) { request =>
       // FIXME: non-atomic operation => concurrency issues
       state = state + (word -> request.body)
       Ok
     }
 
-  def MyFilter[R[x] <: ({type T[x] = Request[(String, String)]})#T[x]] = {
-    new ActionFilter[R] {
-      def filter[A](request: R[A]): Future[Option[Result]] = Future {
-	val word = request.body._1
-	val definition = request.body._2
-	None
-      }
-    }.asInstanceOf[ActionFilter[Request]]
-  }
-
   val jsWordBodyParser: BodyParser[(String, String)] = parse.json map { jsv => 
     ((jsv \ "word").as[String] -> ((jsv \ "definition").as[String]))
   }
 
-  def addPost = {
-    val filter = MyFilter[({type S[x] = Request[(String, String)]})#S]
-    (Action andThen filter)(jsWordBodyParser) { request =>
-      val (word, definition) = request.body
-      state = state + (word -> definition)
-      Ok
-    }
+  def addPost = Action(jsWordBodyParser) { request =>
+    val (word, definition) = request.body
+    state = state + (word -> definition)
+    Ok
   }
 
 }
