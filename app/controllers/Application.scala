@@ -76,12 +76,18 @@ trait Application { this: Controller =>
     Ok(wrequest.definition)
   }
 
-  def add(word: String) =
-    Action(parse.text) { request =>
+  def addResult(word: String, definition: String) =
+    if (state.isDefinedAt(word))
+      Forbidden(s"the word '$word' does already exist")
+    else {
       // FIXME: non-atomic operation => concurrency issues
-      state = state + (word -> request.body)
+      state = state + (word -> definition)
       Ok
     }
+
+  def add(word: String) = Action(parse.text) { request =>
+    addResult(word, request.body)
+  }
 
   val jsWordBodyParser: BodyParser[(String, String)] = parse.json map { jsv => 
     ((jsv \ "word").as[String] -> ((jsv \ "definition").as[String]))
@@ -89,8 +95,7 @@ trait Application { this: Controller =>
 
   def addPost = Action(jsWordBodyParser) { request =>
     val (word, definition) = request.body
-    state = state + (word -> definition)
-    Ok
+    addResult(word, definition)
   }
 
 }
