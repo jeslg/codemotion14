@@ -9,7 +9,7 @@ import play.api.Play.current
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-object Application extends Controller {
+trait Application { this: Controller =>
 
   var state = Map(
     "code" -> "a collection of laws or rules",
@@ -94,3 +94,5 @@ object Application extends Controller {
   }
 
 }
+
+object Application extends Controller with Application
