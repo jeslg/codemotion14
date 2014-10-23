@@ -23,15 +23,10 @@ trait Application { this: Controller =>
     wsState.get(word)
   }
 
-  class WordRequest[A](
-    val word: String, 
-    val definition: String, 
+  case class WordRequest[A](
+    word: String, 
+    definition: String, 
     request: Request[A]) extends WrappedRequest[A](request)
-
-  object WordRequest {
-    def apply[A](word: String, definition: String, request: Request[A]) =
-      new WordRequest(word, definition, request)
-  }
 
   def WordTransducer(word: String) = new ActionRefiner[Request, WordRequest] {
     def refine[A](request: Request[A]) = for {
@@ -63,8 +58,11 @@ trait Application { this: Controller =>
 
   def UpperTransformer = new ActionTransformer[WordRequest, WordRequest] {
     def transform[A](wrequest: WordRequest[A]) = Future {
-      // FIXME: change this notation
-      WordRequest(wrequest.word, wrequest.definition.toUpperCase, wrequest)
+      /* The `WrappedRequest` does already have a `copy` method, so the case
+       * class won't override it. Therefore, we have to use the next ugly
+       * syntax, instead of `wrequest.copy(definition=wr.definition.toUpper)`.
+       */
+      WordRequest(wrequest.word, wrequest.definition.toUpperCase, wrequest.request)
     }
   }
 
@@ -73,6 +71,7 @@ trait Application { this: Controller =>
      andThen WordTransducer(word) 
      andThen ParentalFilter
      andThen UpperTransformer) { wrequest =>
+    wrequest.copy(definition="guas")
     Ok(wrequest.definition)
   }
 
@@ -80,7 +79,7 @@ trait Application { this: Controller =>
     if (state.isDefinedAt(word))
       Forbidden(s"the word '$word' does already exist")
     else {
-      // FIXME: non-atomic operation => concurrency issues
+      // FIXME: ugly side-effect
       state = state + (word -> definition)
       Ok
     }
