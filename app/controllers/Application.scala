@@ -29,10 +29,9 @@ trait Application { this: Controller =>
     state: State,
     request: Request[A]) extends WrappedRequest[A](request)
 
-  def StateTransformer(implicit state: State) = 
-    new ActionTransformer[Request, StateRequest] with ActionBuilder[StateRequest] {
-      def transform[A](request: Request[A]) = Future(StateRequest(state, request))
-    }
+  def StateTransformer(implicit state: State) = new ActionTransformer[Request, StateRequest] {
+    def transform[A](request: Request[A]) = Future(StateRequest(state, request))
+  }
 
   case class WordRequest[A](
     word: String, 
@@ -78,8 +77,9 @@ trait Application { this: Controller =>
   }
 
   def search(word: String) =
-    (StateTransformer
-     andThen WordTransducer(word) 
+    (Action
+     andThen StateTransformer
+     andThen WordTransducer(word)
      andThen ParentalFilter
      andThen UpperTransformer) { wrequest =>
     Ok(wrequest.definition)
@@ -94,9 +94,18 @@ trait Application { this: Controller =>
       Ok
     }
 
-  def add(word: String) = Action(parse.text) { request =>
-    addResult(word, request.body)
+  def AddTransformer(word: String) = new ActionTransformer[Request, WordRequest] {
+    def transform[A](request: Request[A]) = Future {
+      WordRequest(word, request.body.toString, request)
+    }
   }
+
+  def add(word: String) =
+    (Action
+     andThen AddTransformer(word)
+     andThen ParentalFilter)(parse.text) { request =>
+      addResult(word, request.body)
+    }
 
   val jsWordBodyParser: BodyParser[(String, String)] = parse.json map { jsv => 
     ((jsv \ "word").as[String] -> ((jsv \ "definition").as[String]))
