@@ -71,7 +71,6 @@ trait Application { this: Controller =>
      andThen WordTransducer(word) 
      andThen ParentalFilter
      andThen UpperTransformer) { wrequest =>
-    wrequest.copy(definition="guas")
     Ok(wrequest.definition)
   }
 
