@@ -11,7 +11,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 trait Application { this: Controller =>
 
-  var state = Map(
+  type State = Map[String, String]
+
+  implicit var state: State = Map(
     "code" -> "a collection of laws or rules",
     "emotion" -> "a feeling of any kind")
 
@@ -23,14 +25,23 @@ trait Application { this: Controller =>
     wsState.get(word)
   }
 
+  case class StateRequest[A](
+    state: State,
+    request: Request[A]) extends WrappedRequest[A](request)
+
+  def StateTransformer(implicit state: State) = 
+    new ActionTransformer[Request, StateRequest] with ActionBuilder[StateRequest] {
+      def transform[A](request: Request[A]) = Future(StateRequest(state, request))
+    }
+
   case class WordRequest[A](
     word: String, 
     definition: String, 
     request: Request[A]) extends WrappedRequest[A](request)
 
-  def WordTransducer(word: String) = new ActionRefiner[Request, WordRequest] {
-    def refine[A](request: Request[A]) = for {
-      owr <- Future(state.get(word).map(WordRequest(word, _, request)))
+  def WordTransducer(word: String) = new ActionRefiner[StateRequest, WordRequest] {
+    def refine[A](request: StateRequest[A]) = for {
+      owr <- Future(request.state.get(word).map(WordRequest(word, _, request)))
       owr2 <- owr match {
 	case None => ws(word).map(_.map(WordRequest(word, _, request)))
 	case _ => Future.successful(owr)
@@ -66,8 +77,8 @@ trait Application { this: Controller =>
     }
   }
 
-  def search(word: String) = 
-    (Action 
+  def search(word: String) =
+    (StateTransformer
      andThen WordTransducer(word) 
      andThen ParentalFilter
      andThen UpperTransformer) { wrequest =>
