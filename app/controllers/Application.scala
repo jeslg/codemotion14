@@ -1,6 +1,7 @@
 package controllers
 
 import play.api._
+import play.api.cache.Cache
 import play.api.mvc._
 import play.api.libs.json._
 import play.api.libs.ws._
@@ -11,11 +12,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 trait Application { this: Controller =>
 
-  type State = Map[String, String]
+  type Dictionary = Map[String, String]
 
-  implicit var state: State = Map(
-    "code" -> "a collection of laws or rules",
-    "emotion" -> "a feeling of any kind")
+  def dictionary = Cache.getOrElse[Dictionary]("dictionary")(Map())
 
    // TODO: web service invocation
   def ws(word: String): Future[Option[String]] = Future {
@@ -32,7 +31,7 @@ trait Application { this: Controller =>
 
   def WordTransducer(word: String) = new ActionRefiner[Request, WordRequest] {
     def refine[A](request: Request[A]) = for {
-      owr <- Future(state.get(word).map(new WordRequest(word, _, request)))
+      owr <- Future(dictionary.get(word).map(new WordRequest(word, _, request)))
       owr2 <- owr match {
 	case None => ws(word).map(_.map(new WordRequest(word, _, request)))
 	case _ => Future.successful(owr)
@@ -80,11 +79,10 @@ trait Application { this: Controller =>
   }
 
   def addResult(word: String, definition: String) =
-    if (state.isDefinedAt(word))
+    if (dictionary.isDefinedAt(word))
       Forbidden(s"the word '$word' does already exist")
     else {
-      // FIXME: ugly side-effect
-      state = state + (word -> definition)
+      Cache.set("dictionary", dictionary + (word -> definition))
       Ok
     }
 
