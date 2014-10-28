@@ -25,25 +25,16 @@ trait Application { this: Controller =>
     wsState.get(word)
   }
 
-  class StateRequest[A](
-    val state: State,
-    val request: Request[A]) extends WrappedRequest[A](request)
-
-  def StateTransformer(implicit state: State) = new ActionTransformer[Request, StateRequest] {
-    def transform[A](request: Request[A]) = Future(new StateRequest(state, request))
-  }
-
   class WordRequest[A](
-    val word: String, 
+    val word: String,
     val definition: String,
-    state: State,
-    request: Request[A]) extends StateRequest[A](state, request)
+    request: Request[A]) extends WrappedRequest[A](request)
 
-  def WordTransducer(word: String) = new ActionRefiner[StateRequest, WordRequest] {
-    def refine[A](request: StateRequest[A]) = for {
-      owr <- Future(request.state.get(word).map(new WordRequest(word, _, request.state,request)))
+  def WordTransducer(word: String) = new ActionRefiner[Request, WordRequest] {
+    def refine[A](request: Request[A]) = for {
+      owr <- Future(state.get(word).map(new WordRequest(word, _, request)))
       owr2 <- owr match {
-	case None => ws(word).map(_.map(new WordRequest(word, _, request.state,request)))
+	case None => ws(word).map(_.map(new WordRequest(word, _, request)))
 	case _ => Future.successful(owr)
       }
     } yield owr2.toRight(NotFound(s"could not find '$word'"))
@@ -75,15 +66,13 @@ trait Application { this: Controller =>
        */
       new WordRequest(
         wrequest.word, 
-        wrequest.definition.toUpperCase, 
-        wrequest.state, 
-        wrequest.request)
+        wrequest.definition.toUpperCase,
+        wrequest)
     }
   }
 
   def search(word: String) =
     (Action
-     andThen StateTransformer
      andThen WordTransducer(word)
      andThen ParentalFilter
      andThen UpperTransformer) { wrequest =>
@@ -99,15 +88,14 @@ trait Application { this: Controller =>
       Ok
     }
 
-  def AddTransformer(word: String) = new ActionTransformer[StateRequest, WordRequest] {
-    def transform[A](request: StateRequest[A]) = Future {
-      new WordRequest(word, request.body.toString, request.state, request)
+  def AddTransformer(word: String) = new ActionTransformer[Request, WordRequest] {
+    def transform[A](request: Request[A]) = Future {
+      new WordRequest(word, request.body.toString, request)
     }
   }
 
   def add(word: String) =
     (Action
-     andThen StateTransformer
      andThen AddTransformer(word)
      andThen ParentalFilter)(parse.text) { request =>
       addResult(word, request.body) // TODO: what do we do with `addResult`?
