@@ -14,13 +14,23 @@ trait Application { this: Controller =>
 
   type Dictionary = Map[String, String]
 
-  def dictionary = Cache.getOrElse[Dictionary]("dictionary")(Map())
+  object Dictionary {
+
+    private def dictionary = Cache.getOrElse[Dictionary]("dictionary")(Map())
+
+    def isDefinedAt(word: String) = dictionary isDefinedAt word 
+
+    def get(word: String) = dictionary get word
+
+    def set(word: String, definition: String) =
+      Cache.set("dictionary", dictionary + (word -> definition))
+  }
 
    // TODO: web service invocation
   def ws(word: String): Future[Option[String]] = Future {
     val wsState = Map(
-      "programming" -> "the process of writing computer programs",
-      "subroutine" -> "a set of instructions designed to perform a frequently used operation within a program")
+      "code" -> "a collection of laws or rules",
+      "emotion" -> "a (strong) feeling of any kind")
     wsState.get(word)
   }
 
@@ -31,7 +41,7 @@ trait Application { this: Controller =>
 
   def WordTransducer(word: String) = new ActionRefiner[Request, WordRequest] {
     def refine[A](request: Request[A]) = for {
-      owr <- Future(dictionary.get(word).map(new WordRequest(word, _, request)))
+      owr <- Future(Dictionary.get(word).map(new WordRequest(word, _, request)))
       owr2 <- owr match {
 	case None => ws(word).map(_.map(new WordRequest(word, _, request)))
 	case _ => Future.successful(owr)
@@ -79,10 +89,10 @@ trait Application { this: Controller =>
   }
 
   def addResult(word: String, definition: String) =
-    if (dictionary.isDefinedAt(word))
+    if (Dictionary.isDefinedAt(word))
       Forbidden(s"the word '$word' does already exist")
     else {
-      Cache.set("dictionary", dictionary + (word -> definition))
+      Dictionary.set(word, definition)
       Ok
     }
 
