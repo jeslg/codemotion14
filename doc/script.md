@@ -72,15 +72,35 @@ FP IN PRACTICE: WEB PROGRAMMING EXAMPLES
 
 _The purpose of this section is illustrating the FP design process in a familiar domain: Web programming, and using a familiar framework: Play. Ideally, the different concerns exposed above should be somehow exemplified: FP design, ADTs, data types, combinator libraries, side effects/purity, genericity, expressiveness, laws, DSLs, patterns, etc. If the Play framework does not comply with some of these principles and concerns, that would also be good for the purpose of this talk._
 
-### Play Introduction
+### PLAY INTRODUCTION
 
+* Java & **Scala** versions
 * Simple
 * HTTP nature awareness
+* Threads issue
 * Asynchronous (Futures) *Asynchronous Programming is the price you pay, know what you're paying for*
 * Reactive (Inversion of control - Iteratees)
-* Java/Scala
+* Action: your server as a function `Request => Result`
 
-### Data Types
+
+### DESCRIPTION/INTERPRETATION
+
+*How is Play adapted to the Description/Interpretation model?* It's
+ adapted to that model by providing a description for the actions
+ which will be executed once the server receives the HTTP
+ request.
+
+*How is Play NOT adapted to the Description/Interpretation model?*
+ Firstly, scala `Future`s run a side effect in the background, because
+ they are evaluated as soon as possible, instead of having an external
+ interpreter. Secondly, it does not provide a descriptive language to
+ modify the internal state (I mean, the Cache). Thereby, if you don't
+ want to create your own language/interpreter, you'll be forced to
+ have side effects.
+
+### ADTs: DATA TYPES AND COMBINATORS 
+
+Here, we'll be talking about the data types and the combinator libraries.
 
 #### Action
 
@@ -220,10 +240,6 @@ def zip[U](that: Future[U]): Future[(T, U)]
 // wrappers
 ???
 ```
-
-### Description/Interpretation
-
-
 
 WHY SHOULD WE PROGRAM FUNCTIONALY?
 ==================================
