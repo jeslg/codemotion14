@@ -102,12 +102,25 @@ trait Application { this: Controller =>
     }
   }
 
-  def add(word: String) =
+  case class Logging[A](action: Action[A]) extends Action[A] {
+
+    def apply(request: Request[A]): Future[Result] = {
+      Logger.info(s"Incoming request: $request")
+      val result = action(request)
+      Logger.info(s"Returning result: $result")
+      result
+    }
+
+    lazy val parser = action.parser
+  }
+
+  def add(word: String) = Logging {
     (Action
-     andThen AddTransformer(word)
-     andThen ParentalFilter)(parse.text) { request =>
+      andThen AddTransformer(word)
+      andThen ParentalFilter)(parse.text) { request =>
       addResult(word, request.body) // TODO: what do we do with `addResult`?
     }
+  }
 
   val jsWordBodyParser: BodyParser[(String, String)] = parse.json map { jsv => 
     ((jsv \ "word").as[String] -> ((jsv \ "definition").as[String]))
@@ -116,6 +129,30 @@ trait Application { this: Controller =>
   def addPost = Action(jsWordBodyParser) { request =>
     val (word, definition) = request.body
     addResult(word, definition)
+  }
+
+  import play.api.mvc._
+  import play.api.libs.iteratee._
+  import play.api.libs.concurrent.Execution.Implicits.defaultContext
+
+  def asTuples: Enumeratee[String, (String, String)] = Enumeratee.map { s =>
+    val sp = s.split(':')
+    sp(0) -> sp(1)
+  }
+
+  def adder = Iteratee.foreach[(String, String)] { case (word, definition) =>
+    Dictionary.set(word, definition)
+  }
+
+  def socket = WebSocket.using[String] { request =>
+
+    // Log events to the console
+    val in = asTuples &>> adder
+
+    // Send a single 'Hello!' message
+    val out = Enumerator("Hello!")
+
+    (in, out)
   }
 
 }
