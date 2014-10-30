@@ -4,4 +4,8 @@
 
 # Home page
 
-GET    /	controllers.DictionaryApp.helloDictionary
+GET    /		controllers.DictionaryApp.helloDictionary
+
+GET    /:word		controllers.DictionaryApp.search(word)
+
+PUT    /:word		controllers.DictionaryApp.add(word)
