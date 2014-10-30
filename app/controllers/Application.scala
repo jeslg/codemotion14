@@ -18,7 +18,7 @@ trait Application { this: Controller =>
 
     private def dictionary = Cache.getOrElse[Dictionary]("dictionary")(Map())
 
-    def isDefinedAt(word: String) = dictionary isDefinedAt word 
+    def contains(word: String) = dictionary isDefinedAt word 
 
     def get(word: String) = dictionary get word
 
@@ -89,7 +89,7 @@ trait Application { this: Controller =>
   }
 
   def addResult(word: String, definition: String) =
-    if (Dictionary.isDefinedAt(word))
+    if (Dictionary contains word)
       Forbidden(s"the word '$word' does already exist")
     else {
       Dictionary.set(word, definition)
@@ -122,9 +122,10 @@ trait Application { this: Controller =>
     }
   }
 
-  val jsWordBodyParser: BodyParser[(String, String)] = parse.json map { jsv => 
-    ((jsv \ "word").as[String] -> ((jsv \ "definition").as[String]))
-  }
+  def jsToWord(jsv: JsValue): (String, String) =
+    (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
+
+  val jsWordBodyParser: BodyParser[(String, String)] = parse.json.map(jsToWord)
 
   def addPost = Action(jsWordBodyParser) { request =>
     val (word, definition) = request.body
@@ -135,26 +136,23 @@ trait Application { this: Controller =>
   import play.api.libs.iteratee._
   import play.api.libs.concurrent.Execution.Implicits.defaultContext
 
-  def asTuples: Enumeratee[String, (String, String)] = Enumeratee.map { s =>
-    val sp = s.split(':')
-    sp(0) -> sp(1)
-  }
+  def asJson: Enumeratee[String, JsValue] = Enumeratee.map(Json.parse)
 
-  def adder = Iteratee.foreach[(String, String)] { case (word, definition) =>
+  def asWord = Enumeratee.map(jsToWord)
+
+  def wordFilter = 
+    Enumeratee.filter[(String, String)](wd => ! (Dictionary.contains(wd._1)))
+
+  def toCache = Iteratee.foreach[(String, String)] { case (word, definition) =>
+    Logger.info(s"Adding word '$word' to dictionary")
     Dictionary.set(word, definition)
   }
 
   def socket = WebSocket.using[String] { request =>
-
-    // Log events to the console
-    val in = asTuples &>> adder
-
-    // Send a single 'Hello!' message
-    val out = Enumerator("Hello!")
-
+    val in = asJson ><> asWord ><> wordFilter &>> toCache
+    val out = Enumerator("Welcome to the Dictionary WebSocket")
     (in, out)
   }
-
 }
 
 object Application extends Controller with Application
