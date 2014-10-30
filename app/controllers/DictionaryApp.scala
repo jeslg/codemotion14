@@ -11,13 +11,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 trait DictionaryApp { this: Controller =>
 
   // TODO: Should we move this to "models"?
-  type Entry = (String, String)         // (word, definition)
   type Dictionary = Map[String, String] // entry map
 
-  /* Dictionary inner service.
-   *
-   * Deals with the inner state. It hides the user the cache interactions.
-   */
   object Dictionary {
 
     private def dictionary = Cache.getOrElse[Dictionary]("dictionary")(Map())
@@ -26,7 +21,7 @@ trait DictionaryApp { this: Controller =>
 
     def get(word: String) = dictionary get word
 
-    def set(entry: Entry) = Cache.set("dictionary", dictionary + entry)
+    def set(entry: (String, String)) = Cache.set("dictionary", dictionary + entry)
   }
 
   case class Logging[A](action: Action[A]) extends Action[A] {
@@ -46,12 +41,30 @@ trait DictionaryApp { this: Controller =>
       }
     }
 
+  class WordRequest[A](
+    val word: String, 
+    val definition: Option[String], 
+    request: Request[A]) extends WrappedRequest[A](request)
+
+  def WordTransformer(word: String) = new ActionTransformer[Request, WordRequest] {
+    def transform[A](request: Request[A]): Future[WordRequest[A]] = Future {
+      new WordRequest(word, Dictionary.get("word"), request)
+    }
+  }
+
+  object NonExistingFilter extends ActionFilter[WordRequest] {
+    def filter[A](wrequest: WordRequest[A]): Future[Option[Result]] = Future {
+      wrequest.definition match {
+	case Some(definition) => None
+	case _ => Option(NotFound(s"The word '${wrequest.word}' does not exist"))
+      }
+    }
+  }
+
   def search(word: String) = 
     Logging {
-      Action {
-	Dictionary.get(word).map(Ok(_)).getOrElse {
-	  NotFound(s"could not find '$word'")
-	}
+      (Action andThen WordTransformer(word) andThen NonExistingFilter) { wrequest =>
+	Ok(wrequest.definition.get)
       }
     }
 
