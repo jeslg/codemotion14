@@ -72,6 +72,89 @@ FP IN PRACTICE: WEB PROGRAMMING EXAMPLES
 
 _The purpose of this section is illustrating the FP design process in a familiar domain: Web programming, and using a familiar framework: Play. Ideally, the different concerns exposed above should be somehow exemplified: FP design, ADTs, data types, combinator libraries, side effects/purity, genericity, expressiveness, laws, DSLs, patterns, etc. If the Play framework does not comply with some of these principles and concerns, that would also be good for the purpose of this talk._
 
+### GUIÓN PARA PLAY
+
+##### Antes (ya debería haberse contado...)
+
+* Explicación de combinadores básicos
+
+* Explicación de Futures
+
+* Explicación de Iteratees
+
+* Tipos contenedores A[_]
+
+##### Durante
+
+* Hello World: contar las acciones (Your Server as a Function)
+  Descripción de la computación (handler).
+
+* Distintas formas de crear acciones: `Action.apply`s,
+  `Action.async`s... Aparece el BodyParser, pero se describe muy
+  superficialmente.
+
+* ¿Cómo reutilizamos cierta funcionalidad asociada a las acciones sin
+  tener que escribirla de nuevo? Action Composition, Decorator,
+  Logging.
+
+* Servicio PUT: añadir una palabra
+
+* El decorator tiene ciertas limitaciones. ¿Qué debemos hacer si
+  queremos ampliar la información que viene en la cabecera?
+  => ActionTransformer & WordRequest (WrappedRequest)
+
+* Los transformadores se pueden componer fácilmente mediante el
+  combinador `andThen`. WordRequest andThen ToLower.
+
+* También podemos filtrar las peticiones utilizando un filter:
+  WordRequest andThen ToLower andThen ExistingFilter andThen
+  ¿NaughtyFilter? (no queda muy limpio, podríamos quitarlo también).
+
+* Servicio search: reutilizamos ToLower andThen NonExistingFilter.
+
+* Servicio POST: añadir una palabra JSON. ¡No podemos reutilizar, no
+  podemos acceder de forma segura al tipo del cuerpo! (al menos sin
+  hacer guarradas)
+
+* Utilizar el servicio anterior para realizar el parser de Json a
+  palabra (String, String). Nos sirve para enseñar un nuevo tipo de
+  combinación, el método map para convertir un JsValue en (String,
+  String)
+
+* Ampliar servicio de búsqueda: Si la palabra no existe en el
+  diccionario, probar con un servicio externo (local) de palabras, en
+  el que podremos mostrar el Reverse Routing. Pero principalmente,
+  introducimos este servicio para jugar con los Futures, sus
+  combinadores y mostrar cómo es realmente una acción. Podríamos
+  solicitar un token de autenticación antes de llamar a dicho
+  servicio.
+
+* WebSocket: servicio de adición de palabras en formato Json. Jugar
+  con los Enumeratees e Iteratees para mostrar código modular y
+  reusable.
+
+* Realizar alguna prueba en ScalaTest, para mostrar la importancia del
+  DSL y un entorno muy propicio para aprender a programar en Scala.
+
+
+##### Conclusiones (negativas, las positivas son más sencillas :)
+
+* WrappedRequest rompe la reusability, al acoplar el dominio en los
+  servicios.
+
+* `ActionFunction` no permite acceder al body (tipado) de forma
+  sencilla (sin lambda types).
+
+* Play no nos ofrece un lenguaje "descriptivo" para modificar el
+  estado interno (Cache), por lo que o bien creamos nuestro lenguaje,
+  o siendo pragmáticos, añadimos un efecto de lado.
+
+* Los Futures de Play (Scala) tienen efectos de lado. Inmediatamente
+  pasan a calcular el valor. Contar con un intérprete que se encargase
+  de dicha tarea en una capa más externa sería una práctica más
+  funcional (Futures de Scalaz).
+
+
 ### PLAY INTRODUCTION
 
 * Java & **Scala** versions
@@ -121,7 +204,7 @@ def andThen[A](g: (Iteratee[Array[Byte], Result]) ⇒ A): (RequestHeader) ⇒ A
 def compose[A](g: (A) ⇒ RequestHeader): (A) ⇒ Iteratee[Array[Byte], Result]
 
 // wrappers
-???
+Logging { Action { ... } }
 ```
 
 #### ActionBuilder
