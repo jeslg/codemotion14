@@ -2,6 +2,7 @@ package controllers
 
 import play.api._
 import play.api.cache.Cache
+import play.api.libs.json._
 import play.api.mvc._
 import play.api.Play.current
 
@@ -83,6 +84,20 @@ trait DictionaryApp { this: Controller =>
     Logging {
       (Action andThen WordTransformer(word) andThen ExistingFilter)(parse.text) { wrequest =>
 	Dictionary.set(wrequest.word -> wrequest.body)
+	Ok(s"The word '$word' has been added successfully")
+      }
+    }
+
+  def jsToWord(jsv: JsValue): (String, String) =
+    (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
+
+  val jsToWordParser = parse.json map jsToWord
+
+  def addPost =
+    Logging {
+      Action(jsToWordParser) { request =>
+	val entry@(word, _) = request.body
+	Dictionary.set(entry) // TODO: apply reverse routing
 	Ok(s"The word '$word' has been added successfully")
       }
     }
