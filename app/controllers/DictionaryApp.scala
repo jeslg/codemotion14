@@ -48,7 +48,7 @@ trait DictionaryApp { this: Controller =>
 
   def WordTransformer(word: String) = new ActionTransformer[Request, WordRequest] {
     def transform[A](request: Request[A]): Future[WordRequest[A]] = Future {
-      new WordRequest(word, Dictionary.get("word"), request)
+      new WordRequest(word.toLowerCase, Dictionary.get(word.toLowerCase), request)
     }
   }
 
@@ -63,15 +63,26 @@ trait DictionaryApp { this: Controller =>
 
   def search(word: String) = 
     Logging {
-      (Action andThen WordTransformer(word) andThen NonExistingFilter) { wrequest =>
+      (Action 
+       andThen WordTransformer(word)
+       andThen NonExistingFilter) { wrequest =>
 	Ok(wrequest.definition.get)
       }
     }
 
+  object ExistingFilter extends ActionFilter[WordRequest] {
+    def filter[A](wrequest: WordRequest[A]): Future[Option[Result]] = Future {
+      wrequest.definition match {
+	case Some(definition) => Option(Forbidden(s"The word '${wrequest.word}' does already exist"))
+	case _ => None
+      }
+    }
+  }
+
   def add(word: String) =
     Logging {
-      Action(parse.text) { request =>
-	Dictionary.set(word -> request.body)
+      (Action andThen WordTransformer(word) andThen ExistingFilter)(parse.text) { wrequest =>
+	Dictionary.set(wrequest.word -> wrequest.body)
 	Ok(s"The word '$word' has been added successfully")
       }
     }
