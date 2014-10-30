@@ -158,6 +158,7 @@ _The purpose of this section is illustrating the FP design process in a familiar
 ### PLAY INTRODUCTION
 
 * Java & **Scala** versions
+* MVC (though we'll focus on controllers exclusively)
 * Simple
 * HTTP nature awareness
 * Threads issue
