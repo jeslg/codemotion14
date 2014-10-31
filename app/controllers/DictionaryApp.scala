@@ -3,6 +3,7 @@ package controllers
 import play.api._
 import play.api.cache.Cache
 import play.api.libs.json._
+import play.api.libs.ws._
 import play.api.mvc._
 import play.api.Play.current
 
@@ -49,7 +50,7 @@ trait DictionaryApp { this: Controller =>
 
   def WordTransformer(word: String) = new ActionTransformer[Request, WordRequest] {
     def transform[A](request: Request[A]): Future[WordRequest[A]] = Future {
-      new WordRequest(word.toLowerCase, Dictionary.get(word.toLowerCase), request)
+      new WordRequest(word, Dictionary.get(word), request)
     }
   }
 
@@ -64,9 +65,7 @@ trait DictionaryApp { this: Controller =>
 
   def search(word: String) = 
     Logging {
-      (Action 
-       andThen WordTransformer(word)
-       andThen NonExistingFilter) { wrequest =>
+      (Action andThen WordTransformer(word) andThen NonExistingFilter) { wrequest =>
 	Ok(wrequest.definition.get)
       }
     }
@@ -74,30 +73,33 @@ trait DictionaryApp { this: Controller =>
   object ExistingFilter extends ActionFilter[WordRequest] {
     def filter[A](wrequest: WordRequest[A]): Future[Option[Result]] = Future {
       wrequest.definition match {
-	case Some(definition) => Option(Forbidden(s"The word '${wrequest.word}' does already exist"))
+	case Some(definition) => 
+	  Option(Forbidden(s"The word '${wrequest.word}' does already exist"))
 	case _ => None
       }
     }
   }
-
-  def add(word: String) =
-    Logging {
-      (Action andThen WordTransformer(word) andThen ExistingFilter)(parse.text) { wrequest =>
-	Dictionary.set(wrequest.word -> wrequest.body)
-	Ok(s"The word '$word' has been added successfully")
-      }
-    }
 
   def jsToWord(jsv: JsValue): (String, String) =
     (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
 
   val jsToWordParser = parse.json map jsToWord
 
-  def addPost =
+  val checkWordParser = parse.using { request =>
+    jsToWordParser.validate { wd =>
+      if (request.path.tail == wd._1)
+	Right(wd)
+      else
+	Left(BadRequest(s"'${request.path.tail}' was not equal to '${wd._1}'"))
+    }
+  }
+
+  def add(word: String) =
     Logging {
-      Action(jsToWordParser) { request =>
-	val entry@(word, _) = request.body
-	Dictionary.set(entry) // TODO: apply reverse routing
+      (Action 
+       andThen WordTransformer(word)
+       andThen ExistingFilter)(checkWordParser) { wrequest =>
+	Dictionary.set(wrequest.word -> wrequest.body._2)
 	Ok(s"The word '$word' has been added successfully")
       }
     }

@@ -6,8 +6,6 @@
 
 GET    /		controllers.DictionaryApp.helloDictionary
 
-POST   /		controllers.DictionaryApp.addPost
-
 GET    /:word		controllers.DictionaryApp.search(word)
 
 PUT    /:word		controllers.DictionaryApp.add(word)
