@@ -74,9 +74,24 @@ trait DictionaryApp { this: Controller =>
       }
     }
 
-  def wsToken = Future("1234567890")
+  def wsToken: Future[String] = {
+    val rel = controllers.routes.AlternativeDictionaryApp.wsToken.url
+    val holder = WS.url(s"http://localhost:9000$rel")
+    val response = holder.get
+    response map (_.body)
+  }
 
-  def wsSearch(word: String, token: String) = Future(Option("word definition here"))
+  def wsSearch(word: String, token: String): Future[Option[String]] = {
+    val rel = controllers.routes.AlternativeDictionaryApp.wsSearch(word)
+    val holder = WS.url(s"http://localhost:9000$rel").withBody(token)
+    val response = holder.get
+    response map { wsr =>
+      wsr.status match {
+	case OK => Option(wsr.body)
+	case _ => None
+      }
+    }
+  }
 
   def furtherSearch(word: String) =
     Logging {
