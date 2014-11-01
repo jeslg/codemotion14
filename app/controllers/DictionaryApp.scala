@@ -2,6 +2,8 @@ package controllers
 
 import play.api._
 import play.api.cache.Cache
+import play.api.libs.concurrent.Execution.Implicits.defaultContext
+import play.api.libs.iteratee._
 import play.api.libs.json._
 import play.api.libs.ws._
 import play.api.mvc._
@@ -23,7 +25,10 @@ trait DictionaryApp { this: Controller =>
 
     def get(word: String) = dictionary get word
 
-    def set(entry: (String, String)) = Cache.set("dictionary", dictionary + entry)
+    def set(entry: (String, String)) = {
+      Logger.info(s"Adding word '${entry._1}' to dictionary")
+      Cache.set("dictionary", dictionary + entry)
+    }
   }
 
   case class Logging[A](action: Action[A]) extends Action[A] {
@@ -103,6 +108,24 @@ trait DictionaryApp { this: Controller =>
 	Ok(s"The word '$word' has been added successfully")
       }
     }
+
+  def asJson: Enumeratee[String, JsValue] = Enumeratee.map(Json.parse)
+
+  def asEntry = Enumeratee.map(jsToWord)
+
+  def existingFilter = Enumeratee.filter[(String, String)] { case (word, _) => 
+    ! (Dictionary.contains(word))
+  }
+
+  def toDictionary = Iteratee.foreach[(String, String)] { case (word, definition) =>
+    Dictionary.set(word, definition)
+  }
+
+  def wsAdd = WebSocket.using[String] { request =>
+    val in = asJson ><> asEntry ><> existingFilter ><> Enumeratee.take(3) &>> toDictionary
+    val out = Enumerator("You're using the Dictionary WebSocket")
+    (in, out)
+  }
 }
 
 object DictionaryApp extends Controller with DictionaryApp
