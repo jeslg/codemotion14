@@ -2,12 +2,18 @@
 # This file defines all application routes (Higher priority routes first)
 # ~~~~
 
-# Home page
+# Dictionary Routes
 
 GET    /			controllers.DictionaryApp.helloDictionary
 
-GET    /:word			controllers.DictionaryApp.search(word)
+GET    /:word			controllers.DictionaryApp.furtherSearch(word)
 
 PUT    /:word			controllers.DictionaryApp.add(word)
 
 GET    /ws/add			controllers.DictionaryApp.wsAdd
+
+# Alternative Dictionary Routes
+
+GET    /alt/token		controllers.AlternativeDictionaryApp.token
+
+GET    /alt/:word		controllers.AlternativeDictionaryApp.search(word)

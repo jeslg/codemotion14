@@ -14,7 +14,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 trait DictionaryApp { this: Controller =>
 
-  // TODO: Should we move this to "models"?
   type Dictionary = Map[String, String] // entry map
 
   object Dictionary {
@@ -75,6 +74,27 @@ trait DictionaryApp { this: Controller =>
       }
     }
 
+  def wsToken = Future("1234567890")
+
+  def wsSearch(word: String, token: String) = Future(Option("word definition here"))
+
+  def furtherSearch(word: String) =
+    Logging {
+      (Action andThen WordTransformer(word)).async { wrequest =>
+	if (wrequest.definition.isDefined) {
+	  Future(Ok(wrequest.definition.get))
+	} else {
+	  (for {
+	    token <- wsToken
+	    odef  <- wsSearch(word, token)
+	  } yield odef) map (_ match { 
+	    case Some(d) => Ok(d)
+	    case _ => NotFound(s"The word '$word' does not exist")
+	  })
+	}
+      }
+    }
+
   object ExistingFilter extends ActionFilter[WordRequest] {
     def filter[A](wrequest: WordRequest[A]): Future[Option[Result]] = Future {
       wrequest.definition match {
@@ -91,11 +111,11 @@ trait DictionaryApp { this: Controller =>
   val jsToWordParser = parse.json map jsToWord
 
   val checkWordParser = parse.using { request =>
-    jsToWordParser.validate { wd =>
-      if (request.path.tail == wd._1)
+    jsToWordParser.validate { case wd@(word, _) =>
+      if (request.path.tail == word)
 	Right(wd)
       else
-	Left(BadRequest(s"'${request.path.tail}' was not equal to '${wd._1}'"))
+	Left(BadRequest(s"'${request.path.tail}' was not equal to '${word}'"))
     }
   }
 
