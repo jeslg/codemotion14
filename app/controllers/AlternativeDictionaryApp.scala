@@ -7,9 +7,9 @@ trait AlternativeDictionaryApp { this: Controller =>
   
   val TOKEN = "1234567890"
 
-  def token = Action(Ok(TOKEN))
+  def wsToken = Action(Ok(TOKEN))
 
-  def search(word: String) = Action(parse.text) { request =>
+  def wsSearch(word: String) = Action(parse.text) { request =>
     val tk = request.body
     if (tk == TOKEN) {
       word match {

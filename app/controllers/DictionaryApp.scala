@@ -141,7 +141,7 @@ trait DictionaryApp { this: Controller =>
     Dictionary.set(word, definition)
   }
 
-  def wsAdd = WebSocket.using[String] { request =>
+  def socketAdd = WebSocket.using[String] { request =>
     val in = asJson ><> asEntry ><> existingFilter ><> Enumeratee.take(3) &>> toDictionary
     val out = Enumerator("You're using the Dictionary WebSocket")
     (in, out)

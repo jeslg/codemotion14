@@ -10,10 +10,10 @@ GET    /:word			controllers.DictionaryApp.furtherSearch(word)
 
 PUT    /:word			controllers.DictionaryApp.add(word)
 
-GET    /ws/add			controllers.DictionaryApp.wsAdd
+GET    /socket/add		controllers.DictionaryApp.socketAdd
 
 # Alternative Dictionary Routes
 
-GET    /alt/token		controllers.AlternativeDictionaryApp.token
+GET    /ws/token		controllers.AlternativeDictionaryApp.wsToken
 
-GET    /alt/:word		controllers.AlternativeDictionaryApp.search(word)
+GET    /ws/:word		controllers.AlternativeDictionaryApp.wsSearch(word)
