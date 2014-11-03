@@ -14,7 +14,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 trait DictionaryApp { this: Controller =>
 
-  type Dictionary = Map[String, String] // entry map
+  type Dictionary = Map[String, String]
 
   object Dictionary {
 
@@ -157,8 +157,8 @@ trait DictionaryApp { this: Controller =>
   }
 
   def socketAdd = WebSocket.using[String] { request =>
-    val in = asJson ><> asEntry ><> existingFilter ><> Enumeratee.take(3) &>> toDictionary
-    val out = Enumerator("You're using the Dictionary WebSocket")
+    val in = asJson ><> asEntry ><> existingFilter &>> toDictionary
+    val out = Enumerator("You're using the Dictionary WebSocket Service")
     (in, out)
   }
 }
