@@ -1,5 +1,7 @@
 package controllers
 
+import models._
+
 import play.api._
 import play.api.cache.Cache
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
@@ -14,9 +16,9 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 trait DictionaryApp { this: Controller =>
 
-  type Dictionary = Map[String, String]
-
   object Dictionary {
+
+    type Dictionary = Map[String, String]
 
     private def dictionary = Cache.getOrElse[Dictionary]("dictionary")(Map())
 
@@ -29,6 +31,23 @@ trait DictionaryApp { this: Controller =>
       Cache.set("dictionary", dictionary + entry)
     }
   }
+
+  object Users {
+
+    type Users = Map[String, User]
+
+    private def users = Cache.getOrElse[Users]("users")(Map())
+
+    def get(nick: String) = users get nick
+
+    def add(user: User) = {
+      Logger.info(s"Adding '${user.nick}' to user list.")
+      Cache.set("users", users + (user.nick -> user))
+    }
+  }
+
+  Users.add(User("Mr", "Proper", 30))
+  Users.add(User("Don", "Limpio", 15))
 
   case class Logging[A](action: Action[A]) extends Action[A] {
 
