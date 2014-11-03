@@ -49,11 +49,34 @@ trait DictionaryApp { this: Controller =>
   Users.add(User("Mr", "Proper", 30))
   Users.add(User("Don", "Limpio", 15))
 
+  val USER_HEADER_NAME = "user"
+
   case class Logging[A](action: Action[A]) extends Action[A] {
 
     def apply(request: Request[A]): Future[Result] = {
-      Logger.info(request.toString)
-      action(request)
+      val user = request.headers.get(USER_HEADER_NAME).map(Users.get(_))
+      if (user.isDefined) {
+	Logger.info(s"@$user requests ${request.toString}")
+	action(request)
+      } else {
+	Future(Forbidden(s"Invalid '$USER_HEADER_NAME' header"))
+      }
+    }
+
+    lazy val parser = action.parser
+  }
+
+  case class FilterInfant[A](action: Action[A]) extends Action[A] {
+    def apply(request: Request[A]): Future[Result] = {
+      val user = request.headers.get(USER_HEADER_NAME)
+	.map(Users.get(_))
+        .flatten
+	.filter(_.age >= 18)
+      if (user.isDefined) {
+	action(request)
+      } else {
+	Future(Forbidden("You should be an adult to add a word"))
+      }
     }
 
     lazy val parser = action.parser
@@ -61,8 +84,10 @@ trait DictionaryApp { this: Controller =>
 
   def helloDictionary = 
     Logging {
-      Action { request =>
-	Ok("Welcome to the CodeMotion14 Dictionary!")
+      FilterInfant {
+	Action { request =>
+	  Ok("Welcome to the CodeMotion14 Dictionary!")
+	}
       }
     }
 
