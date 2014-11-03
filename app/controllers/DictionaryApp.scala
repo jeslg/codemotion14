@@ -54,9 +54,11 @@ trait DictionaryApp { this: Controller =>
   case class Logging[A](action: Action[A]) extends Action[A] {
 
     def apply(request: Request[A]): Future[Result] = {
-      val user = request.headers.get(USER_HEADER_NAME).map(Users.get(_))
+      val user = request.headers.get(USER_HEADER_NAME)
+	.map(Users.get(_))
+	.flatten
       if (user.isDefined) {
-	Logger.info(s"@$user requests ${request.toString}")
+	Logger.info(s"@${user.get.nick} requests ${request.toString}")
 	action(request)
       } else {
 	Future(Forbidden(s"Invalid '$USER_HEADER_NAME' header"))
