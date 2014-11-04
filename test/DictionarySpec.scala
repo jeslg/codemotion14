@@ -57,10 +57,10 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
 
   "search service" should {
 
-    "find an existing word" in {
+    "find an existing word if the user is empowered to do so" in {
       val word = "known"
       Dictionary.set(word -> "a well known word")
-      val request = FakeRequest(GET, s"/$word")
+      val request = FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
       val result: Future[Result] = search(word) apply request
       status(result) mustEqual OK
       contentAsString(result) mustEqual "a well known word"
@@ -68,9 +68,7 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
 
     "not find a non-existing word" in {
       val word = "unknown"
-      val request = FakeRequest(
-	GET, 
-	s"/$word")
+      val request = FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
       val result: Future[Result] = search(word) apply request
       status(result) mustEqual NOT_FOUND
       contentAsString(result) mustEqual s"The word '$word' does not exist"

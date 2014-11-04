@@ -148,7 +148,7 @@ trait DictionaryApp { this: Controller =>
   def search(word: String) = 
     (Action andThen UserRefiner andThen ReadFilter andThen UserLogging) { urequest =>
       Dictionary.get(word).map(Ok(_)).getOrElse {
-	NotFound(s"The word '$word' was not found")
+	NotFound(s"The word '$word' does not exist")
       }
     }
 
