@@ -3,6 +3,7 @@ import scala.concurrent.Future
 import org.scalatest._
 import org.scalatestplus.play._
 
+import play.api._
 import play.api.libs.json._
 import play.api.mvc._
 import play.api.test._
@@ -13,44 +14,44 @@ import controllers.DictionaryApp
 
 class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
 
-  // implicit override lazy val app: FakeApplication =
-  //   FakeApplication(
-  //     additionalConfiguration = Map("ehcacheplugin" -> "enabled")
-  //   )
-
-  // implicit override def newAppForTest(td: TestData): FakeApplication =
-  //   FakeApplication(
-  //     additionalConfiguration = Map("ehcacheplugin" -> "disabled")
-  //   )
-
   class TestController() extends Controller with DictionaryApp
 
   val controller = new TestController()
   import controller.{ add, search, Dictionary, Users }
 
   "add service" should {
-    
-    "allow adding unknown words" in {
+
+    "allow adding new words if the user is empowered to do so" in {
+
+      Users.add(User("Mr", "Proper", Option(WRITE)))
+      Users.add(User("Don", "Limpio", Option(READ)))
+      Users.add(User("Wipp", "Express"))
+
       val word = "new"
       val request = FakeRequest(
 	POST, 
-	s"/$word", 
-	FakeHeaders(Seq(("user", Seq("don_limpio")))), 
+	"/", 
+	FakeHeaders(Seq(("user", Seq("mr_proper")))),
 	(word, "a new definition"))
       val result = add apply request
       status(result) mustEqual OK
     }
 
-    "fail if the word does already exist" in {
+    "fail if the user is not empowered to do so" in {
       val word = "new"
       val request = FakeRequest(
 	POST, 
-	s"/$word", 
-	FakeHeaders(), 
-	("new", "a brand new definition"))
+	"/", 
+        FakeHeaders(Seq(("user", Seq("don_limpio")))),
+	(word, "a brand new definition"))
       val result: Future[Result] = add apply request
       status(result) mustEqual FORBIDDEN
-      contentAsString(result) mustEqual s"The word '$word' does already exist"
+      contentAsString(result) mustEqual "You are not allowed to write"
+
+      val request2 = request.withHeaders(("user", "wipp_express"))
+      val result2 = add apply request2
+      status(result2) mustEqual FORBIDDEN
+      contentAsString(result2) mustEqual "You are not allowed to write"
     }
   }
 

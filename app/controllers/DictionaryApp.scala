@@ -45,10 +45,12 @@ trait DictionaryApp { this: Controller =>
       Cache.set("users", users + (user.nick -> user))
     }
   }
+  
+  /* Disable these lines for testing */
 
-  Users.add(User("Mr", "Proper", Option(WRITE)))
-  Users.add(User("Don", "Limpio", Option(READ)))
-  Users.add(User("Wipp", "Express"))
+  // Users.add(User("Mr", "Proper", Option(WRITE)))
+  // Users.add(User("Don", "Limpio", Option(READ)))
+  // Users.add(User("Wipp", "Express"))
 
   val USER_HEADER_NAME = "user"
 
