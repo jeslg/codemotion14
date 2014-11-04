@@ -8,6 +8,7 @@ import play.api.mvc._
 import play.api.test._
 import play.api.test.Helpers._
 
+import models._
 import controllers.DictionaryApp
 
 class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
@@ -24,9 +25,9 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
       val request = FakeRequest(
 	PUT, 
 	s"/$word", 
-	FakeHeaders(), 
+	FakeHeaders(Seq(("user", Seq("don_limpio")))), 
 	(word, "a new definition"))
-      val result = add(word) apply request
+      val result = add apply request
       status(result) mustEqual OK
     }
 
@@ -37,7 +38,7 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
 	s"/$word", 
 	FakeHeaders(), 
 	("new", "a brand new definition"))
-      val result: Future[Result] = add(word) apply request
+      val result: Future[Result] = add apply request
       status(result) mustEqual FORBIDDEN
       contentAsString(result) mustEqual s"The word '$word' does already exist"
     }
