@@ -13,17 +13,27 @@ import controllers.DictionaryApp
 
 class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
 
+  // implicit override lazy val app: FakeApplication =
+  //   FakeApplication(
+  //     additionalConfiguration = Map("ehcacheplugin" -> "enabled")
+  //   )
+
+  // implicit override def newAppForTest(td: TestData): FakeApplication =
+  //   FakeApplication(
+  //     additionalConfiguration = Map("ehcacheplugin" -> "disabled")
+  //   )
+
   class TestController() extends Controller with DictionaryApp
 
   val controller = new TestController()
-  import controller.{ add, search, Dictionary }
+  import controller.{ add, search, Dictionary, Users }
 
   "add service" should {
     
     "allow adding unknown words" in {
       val word = "new"
       val request = FakeRequest(
-	PUT, 
+	POST, 
 	s"/$word", 
 	FakeHeaders(Seq(("user", Seq("don_limpio")))), 
 	(word, "a new definition"))
@@ -34,7 +44,7 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
     "fail if the word does already exist" in {
       val word = "new"
       val request = FakeRequest(
-	PUT, 
+	POST, 
 	s"/$word", 
 	FakeHeaders(), 
 	("new", "a brand new definition"))
