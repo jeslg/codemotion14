@@ -46,7 +46,7 @@ trait DictionaryApp { this: Controller =>
     }
 
     // adds some initial users, this could be moved to an external service
-    add(User("Mr", "Proper", Option(WRITE)))
+    add(User("Mr", "Proper", Option(READ_WRITE)))
     add(User("Don", "Limpio", Option(READ)))
     add(User("Wipp", "Express"))
   }
