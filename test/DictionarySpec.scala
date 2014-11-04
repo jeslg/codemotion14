@@ -22,11 +22,6 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
   "add service" should {
 
     "allow adding new words if the user is empowered to do so" in {
-
-      Users.add(User("Mr", "Proper", Option(WRITE)))
-      Users.add(User("Don", "Limpio", Option(READ)))
-      Users.add(User("Wipp", "Express"))
-
       val word = "new"
       val request = FakeRequest(
 	POST, 

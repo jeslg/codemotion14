@@ -44,34 +44,14 @@ trait DictionaryApp { this: Controller =>
       Logger.info(s"Adding '${user.nick}' to user list.")
       Cache.set("users", users + (user.nick -> user))
     }
-  }
-  
-  /* Disable these lines for testing */
 
-  // Users.add(User("Mr", "Proper", Option(WRITE)))
-  // Users.add(User("Don", "Limpio", Option(READ)))
-  // Users.add(User("Wipp", "Express"))
+    // adds some initial users, this could be moved to an external service
+    add(User("Mr", "Proper", Option(WRITE)))
+    add(User("Don", "Limpio", Option(READ)))
+    add(User("Wipp", "Express"))
+  }
 
   val USER_HEADER_NAME = "user"
-
-  /* This is what we want to avoid */
-
-  // case class Logging[A](action: Action[A]) extends Action[A] {
-
-  //   def apply(request: Request[A]): Future[Result] = {
-  //     val user = request.headers.get(USER_HEADER_NAME)
-  // 	.map(Users.get(_))
-  // 	.flatten
-  //     if (user.isDefined) {
-  // 	Logger.info(s"@${user.get.nick} requests ${request.toString}")
-  // 	action(request)
-  //     } else {
-  // 	Future(Forbidden(s"Invalid '$USER_HEADER_NAME' header"))
-  //     }
-  //   }
-
-  //   lazy val parser = action.parser
-  // }
 
   class UserRequest[A](
     val user: User, 
@@ -146,14 +126,20 @@ trait DictionaryApp { this: Controller =>
     }
 
   def search(word: String) = 
-    (Action andThen UserRefiner andThen ReadFilter andThen UserLogging) { urequest =>
+    (Action 
+     andThen UserRefiner 
+     andThen ReadFilter 
+     andThen UserLogging) { urequest =>
       Dictionary.get(word).map(Ok(_)).getOrElse {
 	NotFound(s"The word '$word' does not exist")
       }
     }
 
   def furtherSearch(word: String) =
-    (Action andThen UserRefiner andThen ReadFilter andThen UserLogging).async { urequest =>
+    (Action 
+     andThen UserRefiner 
+     andThen ReadFilter 
+     andThen UserLogging).async { urequest =>
       Dictionary.get(word).map(d => Future(Ok(d))).getOrElse {
 	(for {
 	  token <- wsToken
@@ -166,10 +152,13 @@ trait DictionaryApp { this: Controller =>
     }
 
   def add = {
-    (Action andThen UserRefiner andThen WriteFilter andThen UserLogging)(jsToWordParser) { urequest =>
-      val entry@(word, _) = urequest.body
-      Dictionary.set(entry)
-      Ok(s"The word '$word' has been added successfully")
+    (Action 
+     andThen UserRefiner 
+     andThen WriteFilter 
+     andThen UserLogging)(jsToWordParser) { urequest =>
+       val entry@(word, _) = urequest.body
+       Dictionary.set(entry)
+       Ok(s"The word '$word' has been added successfully")
     }
   }
 
@@ -181,8 +170,10 @@ trait DictionaryApp { this: Controller =>
     ! (Dictionary.contains(word))
   }
 
-  def toDictionary = Iteratee.foreach[(String, String)] { case (word, definition) =>
-    Dictionary.set(word, definition)
+  def toDictionary = {
+    Iteratee.foreach[(String, String)] { case (word, definition) =>
+      Dictionary.set(word, definition)
+    }
   }
 
   def socketAdd = WebSocket.using[String] { request =>

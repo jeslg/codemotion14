@@ -12,6 +12,10 @@ GET    /:word			controllers.DictionaryApp.search(word)
 
 GET    /socket/add		controllers.DictionaryApp.socketAdd
 
+# User management
+
+
+
 # Alternative Dictionary Routes
 
 GET    /ws/token		controllers.AlternativeDictionaryApp.wsToken
