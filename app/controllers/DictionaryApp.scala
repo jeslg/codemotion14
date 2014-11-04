@@ -176,6 +176,9 @@ trait DictionaryApp { this: Controller =>
     }
   }
 
+  /*
+   * This can be tested by using: http://websocket.org/echo.html
+   */
   def socketAdd = WebSocket.using[String] { request =>
     val in = asJson ><> asEntry ><> existingFilter &>> toDictionary
     val out = Enumerator("You're using the Dictionary WebSocket Service")
