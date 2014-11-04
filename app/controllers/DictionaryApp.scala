@@ -52,21 +52,7 @@ trait DictionaryApp { this: Controller =>
 
   val USER_HEADER_NAME = "user"
 
-  class UserRequest[A](
-    val user: User, 
-    request: Request[A]) extends WrappedRequest[A](request)
-
-  object UserRefiner extends ActionRefiner[Request, UserRequest] {
-    def refine[A](request: Request[A]) = Future {
-      val user = request.headers.get(USER_HEADER_NAME)
-	.map(Users.get(_))
-        .flatten
-      if (user.isDefined)
-	Right(new UserRequest(user.get, request))
-      else
-	Left(Forbidden(s"Invalid '$USER_HEADER_NAME' header"))
-    } 
-  }
+  /* This is what we want to avoid */
 
   // case class Logging[A](action: Action[A]) extends Action[A] {
 
@@ -84,6 +70,22 @@ trait DictionaryApp { this: Controller =>
 
   //   lazy val parser = action.parser
   // }
+
+  class UserRequest[A](
+    val user: User, 
+    request: Request[A]) extends WrappedRequest[A](request)
+
+  object UserRefiner extends ActionRefiner[Request, UserRequest] {
+    def refine[A](request: Request[A]) = Future {
+      val user = request.headers.get(USER_HEADER_NAME)
+	.map(Users.get(_))
+        .flatten
+      if (user.isDefined)
+	Right(new UserRequest(user.get, request))
+      else
+	Left(Forbidden(s"Invalid '$USER_HEADER_NAME' header"))
+    } 
+  }
 
   object UserLogging extends ActionTransformer[UserRequest, UserRequest] {
     def transform[A](urequest: UserRequest[A]) = Future {
@@ -112,18 +114,6 @@ trait DictionaryApp { this: Controller =>
     Permission.canWrite, 
     "You are not allowed to write")
 
-  def helloDictionary = 
-    (Action andThen UserRefiner andThen UserLogging) {
-      Ok("Welcome to the CodeMotion14 Dictionary!")
-    }
-
-  def search(word: String) = 
-    (Action andThen UserRefiner andThen ReadFilter andThen UserLogging) { urequest =>
-      Dictionary.get(word).map(Ok(_)).getOrElse {
-	NotFound(s"The word '$word' was not found")
-      }
-    }
-
   def wsToken: Future[String] = {
     val rel = controllers.routes.AlternativeDictionaryApp.wsToken.url
     val holder = WS.url(s"http://localhost:9000$rel")
@@ -143,6 +133,23 @@ trait DictionaryApp { this: Controller =>
     }
   }
 
+  def jsToWord(jsv: JsValue): (String, String) =
+    (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
+
+  val jsToWordParser = parse.json map jsToWord
+
+  def helloDictionary = 
+    (Action andThen UserRefiner andThen UserLogging) {
+      Ok("Welcome to the CodeMotion14 Dictionary!")
+    }
+
+  def search(word: String) = 
+    (Action andThen UserRefiner andThen ReadFilter andThen UserLogging) { urequest =>
+      Dictionary.get(word).map(Ok(_)).getOrElse {
+	NotFound(s"The word '$word' was not found")
+      }
+    }
+
   def furtherSearch(word: String) =
     (Action andThen UserRefiner andThen ReadFilter andThen UserLogging).async { urequest =>
       Dictionary.get(word).map(d => Future(Ok(d))).getOrElse {
@@ -155,11 +162,6 @@ trait DictionaryApp { this: Controller =>
 	})
       }
     }
-
-  def jsToWord(jsv: JsValue): (String, String) =
-    (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
-
-  val jsToWordParser = parse.json map jsToWord
 
   def add = {
     (Action andThen UserRefiner andThen WriteFilter andThen UserLogging)(jsToWordParser) { urequest =>
