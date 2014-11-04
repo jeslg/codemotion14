@@ -6,9 +6,9 @@
 
 GET    /			controllers.DictionaryApp.helloDictionary
 
-GET    /:word			controllers.DictionaryApp.furtherSearch(word)
+POST   /			controllers.DictionaryApp.add
 
-PUT    /:word			controllers.DictionaryApp.add(word)
+GET    /:word			controllers.DictionaryApp.search(word)
 
 GET    /socket/add		controllers.DictionaryApp.socketAdd
 

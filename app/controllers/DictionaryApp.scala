@@ -46,77 +46,81 @@ trait DictionaryApp { this: Controller =>
     }
   }
 
-  Users.add(User("Mr", "Proper", 30))
-  Users.add(User("Don", "Limpio", 15))
+  Users.add(User("Mr", "Proper", Option(WRITE)))
+  Users.add(User("Don", "Limpio", Option(READ)))
+  Users.add(User("Wipp", "Express"))
 
   val USER_HEADER_NAME = "user"
 
-  case class Logging[A](action: Action[A]) extends Action[A] {
+  class UserRequest[A](
+    val user: User, 
+    request: Request[A]) extends WrappedRequest[A](request)
 
-    def apply(request: Request[A]): Future[Result] = {
-      val user = request.headers.get(USER_HEADER_NAME)
-	.map(Users.get(_))
-	.flatten
-      if (user.isDefined) {
-	Logger.info(s"@${user.get.nick} requests ${request.toString}")
-	action(request)
-      } else {
-	Future(Forbidden(s"Invalid '$USER_HEADER_NAME' header"))
-      }
-    }
-
-    lazy val parser = action.parser
-  }
-
-  case class FilterInfant[A](action: Action[A]) extends Action[A] {
-    def apply(request: Request[A]): Future[Result] = {
+  object UserRefiner extends ActionRefiner[Request, UserRequest] {
+    def refine[A](request: Request[A]) = Future {
       val user = request.headers.get(USER_HEADER_NAME)
 	.map(Users.get(_))
         .flatten
-	.filter(_.age >= 18)
-      if (user.isDefined) {
-	action(request)
-      } else {
-	Future(Forbidden("You should be an adult to add a word"))
-      }
-    }
-
-    lazy val parser = action.parser
+      if (user.isDefined)
+	Right(new UserRequest(user.get, request))
+      else
+	Left(Forbidden(s"Invalid '$USER_HEADER_NAME' header"))
+    } 
   }
+
+  // case class Logging[A](action: Action[A]) extends Action[A] {
+
+  //   def apply(request: Request[A]): Future[Result] = {
+  //     val user = request.headers.get(USER_HEADER_NAME)
+  // 	.map(Users.get(_))
+  // 	.flatten
+  //     if (user.isDefined) {
+  // 	Logger.info(s"@${user.get.nick} requests ${request.toString}")
+  // 	action(request)
+  //     } else {
+  // 	Future(Forbidden(s"Invalid '$USER_HEADER_NAME' header"))
+  //     }
+  //   }
+
+  //   lazy val parser = action.parser
+  // }
+
+  object UserLogging extends ActionTransformer[UserRequest, UserRequest] {
+    def transform[A](urequest: UserRequest[A]) = Future {
+      Logger.info(s"@${urequest.user.nick} requests ${urequest.toString}")
+      urequest
+    }
+  }
+
+  class PermissionFilter(
+      permitted: User => Boolean, 
+      err: String) extends ActionFilter[UserRequest] {
+
+    def filter[A](urequest: UserRequest[A]) = Future {
+      if (permitted(urequest.user))
+	None
+      else
+	Option(Forbidden(err))
+    }
+  }
+
+  object ReadFilter extends PermissionFilter(
+    Permission.canRead,
+    "You are not allowed to read")
+
+  object WriteFilter extends PermissionFilter(
+    Permission.canWrite, 
+    "You are not allowed to write")
 
   def helloDictionary = 
-    Logging {
-      FilterInfant {
-	Action { request =>
-	  Ok("Welcome to the CodeMotion14 Dictionary!")
-	}
-      }
+    (Action andThen UserRefiner andThen UserLogging) {
+      Ok("Welcome to the CodeMotion14 Dictionary!")
     }
-
-  class WordRequest[A](
-    val word: String, 
-    val definition: Option[String], 
-    request: Request[A]) extends WrappedRequest[A](request)
-
-  def WordTransformer(word: String) = new ActionTransformer[Request, WordRequest] {
-    def transform[A](request: Request[A]): Future[WordRequest[A]] = Future {
-      new WordRequest(word, Dictionary.get(word), request)
-    }
-  }
-
-  object NonExistingFilter extends ActionFilter[WordRequest] {
-    def filter[A](wrequest: WordRequest[A]): Future[Option[Result]] = Future {
-      wrequest.definition match {
-	case Some(definition) => None
-	case _ => Option(NotFound(s"The word '${wrequest.word}' does not exist"))
-      }
-    }
-  }
 
   def search(word: String) = 
-    Logging {
-      (Action andThen WordTransformer(word) andThen NonExistingFilter) { wrequest =>
-	Ok(wrequest.definition.get)
+    (Action andThen UserRefiner andThen ReadFilter andThen UserLogging) { urequest =>
+      Dictionary.get(word).map(Ok(_)).getOrElse {
+	NotFound(s"The word '$word' was not found")
       }
     }
 
@@ -140,55 +144,30 @@ trait DictionaryApp { this: Controller =>
   }
 
   def furtherSearch(word: String) =
-    Logging {
-      (Action andThen WordTransformer(word)).async { wrequest =>
-	if (wrequest.definition.isDefined) {
-	  Future(Ok(wrequest.definition.get))
-	} else {
-	  (for {
-	    token <- wsToken
-	    odef  <- wsSearch(word, token)
-	  } yield odef) map (_ match { 
-	    case Some(d) => Ok(d)
-	    case _ => NotFound(s"The word '$word' does not exist")
-	  })
-	}
+    (Action andThen UserRefiner andThen ReadFilter andThen UserLogging).async { urequest =>
+      Dictionary.get(word).map(d => Future(Ok(d))).getOrElse {
+	(for {
+	  token <- wsToken
+	  odef  <- wsSearch(word, token)
+	} yield odef).map(_ match { 
+	  case Some(d) => Ok(d)
+	  case _ => NotFound(s"The word '$word' does not exist")
+	})
       }
     }
-
-  object ExistingFilter extends ActionFilter[WordRequest] {
-    def filter[A](wrequest: WordRequest[A]): Future[Option[Result]] = Future {
-      wrequest.definition match {
-	case Some(definition) => 
-	  Option(Forbidden(s"The word '${wrequest.word}' does already exist"))
-	case _ => None
-      }
-    }
-  }
 
   def jsToWord(jsv: JsValue): (String, String) =
     (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
 
   val jsToWordParser = parse.json map jsToWord
 
-  val checkWordParser = parse.using { request =>
-    jsToWordParser.validate { case wd@(word, _) =>
-      if (request.path.tail == word)
-	Right(wd)
-      else
-	Left(BadRequest(s"'${request.path.tail}' was not equal to '${word}'"))
+  def add = {
+    (Action andThen UserRefiner andThen WriteFilter andThen UserLogging)(jsToWordParser) { urequest =>
+      val entry@(word, _) = urequest.body
+      Dictionary.set(entry)
+      Ok(s"The word '$word' has been added successfully")
     }
   }
-
-  def add(word: String) =
-    Logging {
-      (Action 
-       andThen WordTransformer(word)
-       andThen ExistingFilter)(checkWordParser) { wrequest =>
-	Dictionary.set(wrequest.word -> wrequest.body._2)
-	Ok(s"The word '$word' has been added successfully")
-      }
-    }
 
   def asJson: Enumeratee[String, JsValue] = Enumeratee.map(Json.parse)
 
