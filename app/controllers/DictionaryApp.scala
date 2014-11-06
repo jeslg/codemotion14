@@ -31,7 +31,7 @@ trait DictionaryApp { this: Controller =>
       if (user.isDefined)
 	Right(new UserRequest(user.get, request))
       else
-	Left(Forbidden(s"Invalid '$USER_HEADER_NAME' header"))
+	Left(Unauthorized(s"Invalid '$USER_HEADER_NAME' header"))
     } 
   }
 
