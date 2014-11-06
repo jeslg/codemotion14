@@ -1,4 +1,4 @@
-package models
+package models.org.hablapps.codemotion14
 
 trait Permission
 case object READ extends Permission

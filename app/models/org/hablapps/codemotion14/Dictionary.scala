@@ -1,4 +1,4 @@
-package models
+package models.org.hablapps.codemotion14
 
 import play.api.cache.Cache
 import play.api.Play.current

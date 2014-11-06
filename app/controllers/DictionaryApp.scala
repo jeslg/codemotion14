@@ -12,6 +12,7 @@ import play.api.mvc._
 import play.api.Play.current
 
 import models._
+import org.hablapps.codemotion14._
 
 trait DictionaryApp { this: Controller =>
 

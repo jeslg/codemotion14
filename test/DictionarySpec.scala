@@ -10,6 +10,7 @@ import play.api.test._
 import play.api.test.Helpers._
 
 import models._
+import org.hablapps.codemotion14._
 import controllers.DictionaryApp
 
 class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
