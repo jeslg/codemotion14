@@ -111,7 +111,9 @@ trait DictionaryApp { this: Controller =>
       Dictionary.get(word).map(d => Future(Ok(d))).getOrElse {
 	if (isFurtherSearch(urequest)) {
 	  wsTokenAndSearch(word).map { odef =>
-	    odef.map(Ok(_)).getOrElse(NotFound(s"The word '$word' does not exist"))
+	    odef.map(Ok(_)).getOrElse {
+	      NotFound(s"The word '$word' does not exist")
+	    }
 	  }
 	} else {
 	  Future(NotFound(s"The word '$word' does not exist"))
