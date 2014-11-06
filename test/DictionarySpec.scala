@@ -23,7 +23,7 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
                     	FakeHeaders(Seq(("user", Seq("mr_proper")))),
     	                ("new", "a new definition"))
       val result = DictionaryApp.add(request) // así se ve mejor que el controlador es una función
-      status(result) mustEqual OK
+      status(result) mustEqual CREATED
     }
 
     "fail if the user is not empowered to do so" in {

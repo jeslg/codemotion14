@@ -125,7 +125,9 @@ trait DictionaryApp { this: Controller =>
      andThen UserLogging)(jsToWordParser) { urequest =>
        val entry@(word, _) = urequest.body
        Dictionary.set(entry)
-       Ok(s"The word '$word' has been added successfully")
+       val url = controllers.routes.DictionaryApp.search(word).url
+       Created(s"The word '$word' has been added successfully")
+         .withHeaders((LOCATION -> url))
     }
   }
 
