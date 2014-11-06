@@ -16,6 +16,7 @@ import models._
 trait DictionaryApp { this: Controller =>
 
   val USER_HEADER_NAME = "user"
+  val FURTHER_QUERY_NAME = "further"
 
   class UserRequest[A](
     val user: User, 
@@ -79,6 +80,13 @@ trait DictionaryApp { this: Controller =>
     }
   }
 
+  def wsTokenAndSearch(word: String): Future[Option[String]] = {
+    for {
+      token <- wsToken
+      odef  <- wsSearch(word, token)
+    } yield odef
+  }
+
   def jsToWord(jsv: JsValue): (String, String) =
     (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
 
@@ -89,29 +97,24 @@ trait DictionaryApp { this: Controller =>
       Ok("Welcome to the CodeMotion14 Dictionary!")
     }
 
-  def search(word: String) = 
-    (Action 
-     andThen UserRefiner 
-     andThen ReadFilter 
-     andThen UserLogging) { urequest =>
-      Dictionary.get(word).map(Ok(_)).getOrElse {
-	NotFound(s"The word '$word' does not exist")
-      }
-    }
+  def isFurtherSearch[A](request: Request[A]): Boolean =
+    request.queryString.contains(FURTHER_QUERY_NAME) &&
+      (request.queryString(FURTHER_QUERY_NAME).size > 0) && 
+      request.queryString(FURTHER_QUERY_NAME).head.toBoolean
 
-  def furtherSearch(word: String) =
+  def search(word: String) =
     (Action 
      andThen UserRefiner 
      andThen ReadFilter 
      andThen UserLogging).async { urequest =>
       Dictionary.get(word).map(d => Future(Ok(d))).getOrElse {
-	(for {
-	  token <- wsToken
-	  odef  <- wsSearch(word, token)
-	} yield odef).map(_ match { 
-	  case Some(d) => Ok(d)
-	  case _ => NotFound(s"The word '$word' does not exist")
-	})
+	if (isFurtherSearch(urequest)) {
+	  wsTokenAndSearch(word).map { odef =>
+	    odef.map(Ok(_)).getOrElse(NotFound(s"The word '$word' does not exist"))
+	  }
+	} else {
+	  Future(NotFound(s"The word '$word' does not exist"))
+	}
       }
     }
 
