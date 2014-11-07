@@ -1,9 +1,9 @@
 package controllers
 
-import models._
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import play.api._
-import play.api.cache.Cache
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.iteratee._
 import play.api.libs.json._
@@ -11,47 +11,13 @@ import play.api.libs.ws._
 import play.api.mvc._
 import play.api.Play.current
 
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
+import models._
+import org.hablapps.codemotion14._
 
 trait DictionaryApp { this: Controller =>
 
-  object Dictionary {
-
-    type Dictionary = Map[String, String]
-
-    private def dictionary = Cache.getOrElse[Dictionary]("dictionary")(Map())
-
-    def contains(word: String) = dictionary isDefinedAt word 
-
-    def get(word: String) = dictionary get word
-
-    def set(entry: (String, String)) = {
-      Logger.info(s"Adding word '${entry._1}' to dictionary")
-      Cache.set("dictionary", dictionary + entry)
-    }
-  }
-
-  object Users {
-
-    type Users = Map[String, User]
-
-    private def users = Cache.getOrElse[Users]("users")(Map())
-
-    def get(nick: String) = users get nick
-
-    def add(user: User) = {
-      Logger.info(s"Adding '${user.nick}' to user list.")
-      Cache.set("users", users + (user.nick -> user))
-    }
-
-    // adds some initial users, this could be moved to an external service
-    add(User("Mr", "Proper", Option(READ_WRITE)))
-    add(User("Don", "Limpio", Option(READ)))
-    add(User("Wipp", "Express"))
-  }
-
   val USER_HEADER_NAME = "user"
+  val FURTHER_QUERY_NAME = "further"
 
   class UserRequest[A](
     val user: User, 
@@ -65,7 +31,7 @@ trait DictionaryApp { this: Controller =>
       if (user.isDefined)
 	Right(new UserRequest(user.get, request))
       else
-	Left(Forbidden(s"Invalid '$USER_HEADER_NAME' header"))
+	Left(Unauthorized(s"Invalid '$USER_HEADER_NAME' header"))
     } 
   }
 
@@ -115,6 +81,13 @@ trait DictionaryApp { this: Controller =>
     }
   }
 
+  def wsTokenAndSearch(word: String): Future[Option[String]] = {
+    for {
+      token <- wsToken
+      odef  <- wsSearch(word, token)
+    } yield odef
+  }
+
   def jsToWord(jsv: JsValue): (String, String) =
     (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
 
@@ -125,29 +98,26 @@ trait DictionaryApp { this: Controller =>
       Ok("Welcome to the CodeMotion14 Dictionary!")
     }
 
-  def search(word: String) = 
-    (Action 
-     andThen UserRefiner 
-     andThen ReadFilter 
-     andThen UserLogging) { urequest =>
-      Dictionary.get(word).map(Ok(_)).getOrElse {
-	NotFound(s"The word '$word' does not exist")
-      }
-    }
+  def isFurtherSearch[A](request: Request[A]): Boolean =
+    request.queryString.contains(FURTHER_QUERY_NAME) &&
+      (request.queryString(FURTHER_QUERY_NAME).size > 0) && 
+      request.queryString(FURTHER_QUERY_NAME).head.toBoolean
 
-  def furtherSearch(word: String) =
+  def search(word: String) =
     (Action 
      andThen UserRefiner 
      andThen ReadFilter 
      andThen UserLogging).async { urequest =>
       Dictionary.get(word).map(d => Future(Ok(d))).getOrElse {
-	(for {
-	  token <- wsToken
-	  odef  <- wsSearch(word, token)
-	} yield odef).map(_ match { 
-	  case Some(d) => Ok(d)
-	  case _ => NotFound(s"The word '$word' does not exist")
-	})
+	if (isFurtherSearch(urequest)) {
+	  wsTokenAndSearch(word).map { odef =>
+	    odef.map(Ok(_)).getOrElse {
+	      NotFound(s"The word '$word' does not exist")
+	    }
+	  }
+	} else {
+	  Future(NotFound(s"The word '$word' does not exist"))
+	}
       }
     }
 
@@ -158,7 +128,9 @@ trait DictionaryApp { this: Controller =>
      andThen UserLogging)(jsToWordParser) { urequest =>
        val entry@(word, _) = urequest.body
        Dictionary.set(entry)
-       Ok(s"The word '$word' has been added successfully")
+       val url = controllers.routes.DictionaryApp.search(word).url
+       Created(s"The word '$word' has been added successfully")
+         .withHeaders((LOCATION -> url))
     }
   }
 
