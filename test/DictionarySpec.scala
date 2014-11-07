@@ -4,6 +4,7 @@ import org.scalatest._
 import org.scalatestplus.play._
 
 import play.api._
+import play.api.cache._
 import play.api.libs.json._
 import play.api.mvc._
 import play.api.test._
@@ -13,7 +14,17 @@ import models._
 import org.hablapps.codemotion14._
 import controllers.DictionaryApp
 
-class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
+class DictionarySpec extends PlaySpec with Results with OneAppPerSuite { 
+
+  implicit override lazy val app: FakeApplication = new FakeApplication {
+    override lazy val plugins = Seq(new EhCachePlugin(this) {
+      override def onStart {
+	Users.add(User("Mr", "Proper", Option(READ_WRITE)))
+	Users.add(User("Don", "Limpio", Option(READ)))
+	Users.add(User("Wipp", "Express"))
+      }
+    })
+  }
 
   "add service" should {
 
@@ -23,7 +34,7 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
         "/", 
         FakeHeaders(Seq(("user", Seq("mr_proper")))),
     	("new", "a new definition"))
-      val result = DictionaryApp.add(request) // así se ve mejor que el controlador es una función
+      val result = DictionaryApp.add(request)
       status(result) mustEqual CREATED
     }
 

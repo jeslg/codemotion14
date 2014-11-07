@@ -24,9 +24,4 @@ object Users {
     Logger.info(s"Adding '${user.nick}' to user list.")
     Cache.set("users", users + (user.nick -> user))
   }
-
-  // adds some initial users, this could be moved to an external service
-  add(User("Mr", "Proper", Option(READ_WRITE)))
-  add(User("Don", "Limpio", Option(READ)))
-  add(User("Wipp", "Express"))
 }
