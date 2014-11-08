@@ -18,4 +18,7 @@ object Dictionary {
     Logger.info(s"Adding word '${entry._1}' to dictionary")
     Cache.set("dictionary", dictionary + entry)
   }
+
+  def reset(entries: (String, String)*) = 
+    Cache.set("dictionary", entries.toMap)
 }

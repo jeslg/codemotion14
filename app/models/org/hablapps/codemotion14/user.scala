@@ -24,4 +24,7 @@ object Users {
     Logger.info(s"Adding '${user.nick}' to user list.")
     Cache.set("users", users + (user.nick -> user))
   }
+
+  def reset(users: User*) =
+    Cache.set("users", users.map(u => u.nick -> u).toMap)
 }

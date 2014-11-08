@@ -14,21 +14,28 @@ import models._
 import org.hablapps.codemotion14._
 import controllers.DictionaryApp
 
-class DictionarySpec extends PlaySpec with Results with OneAppPerSuite { 
+class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
 
-  implicit override lazy val app: FakeApplication = new FakeApplication {
-    override lazy val plugins = Seq(new EhCachePlugin(this) {
-      override def onStart {
-	Users.add(User("Mr", "Proper", Option(READ_WRITE)))
-	Users.add(User("Don", "Limpio", Option(READ)))
-	Users.add(User("Wipp", "Express"))
-      }
-    })
+  object DSLUtils {
+    
+    def withUsers(users: User*) = Users.reset(users: _*)
+
+    def withoutUsers = withUsers()
+
+    def withWords(entries: (String, String)*) = Dictionary.reset(entries: _*)
+
+    def withoutWords = withWords()
   }
+
+  import DSLUtils._
 
   "add service" should {
 
     "allow adding new words if the user is empowered to do so" in {
+
+      withUsers(
+	User("Mr", "Proper", Option(READ_WRITE)))
+
       val request = FakeRequest(
         POST, 
         "/", 
@@ -39,6 +46,11 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
     }
 
     "fail if the user is not empowered to do so" in {
+
+      withUsers(
+	User("Don", "Limpio", Option(READ)),
+	User("Wipp", "Express"))
+
       val request = FakeRequest(
 	POST, 
 	"/", 
@@ -55,6 +67,9 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
     }
 
     "fail if the user does not provide a `user` request" in {
+
+      withoutUsers
+
       val request = FakeRequest(POST, "/", FakeHeaders(), 
         ("new", "a brand new definition"))
       val result: Future[Result] = DictionaryApp.add(request)
@@ -66,8 +81,11 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
   "search service" should {
 
     "find an existing word if the user is empowered to do so" in {
+
+      withUsers(User("Don", "Limpio", Option(READ)))
+      withWords("known" -> "a well known word")
+
       val word = "known"
-      Dictionary.set(word -> "a well known word")
       val request = FakeRequest(GET, s"/$word")
 	.withHeaders(("user" -> "don_limpio"))
       val result: Future[Result] = DictionaryApp.search(word)(request)
@@ -76,6 +94,10 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
     }
 
     "not find a non-existing word" in {
+
+      withUsers(User("Don", "Limpio", Option(READ)))
+      withoutWords
+
       val word = "unknown"
       val request = FakeRequest(GET, s"/$word")
 	.withHeaders(("user" -> "don_limpio"))
