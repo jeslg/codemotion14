@@ -87,7 +87,7 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
 
       val word = "known"
       val request = FakeRequest(GET, s"/$word")
-	.withHeaders(("user" -> "don_limpio"))
+	                   .withHeaders(("user" -> "don_limpio"))
       val result: Future[Result] = DictionaryApp.search(word)(request)
       status(result) mustEqual OK
       contentAsString(result) mustEqual "a well known word"
@@ -100,7 +100,7 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
 
       val word = "unknown"
       val request = FakeRequest(GET, s"/$word")
-	.withHeaders(("user" -> "don_limpio"))
+	                   .withHeaders(("user" -> "don_limpio"))
       val result: Future[Result] = DictionaryApp.search(word)(request)
       status(result) mustEqual NOT_FOUND
       contentAsString(result) mustEqual s"The word '$word' does not exist"
