@@ -1,7 +1,10 @@
 import scala.concurrent.Future
 
 import org.scalatest._
+import org.scalatest.mock._
 import org.scalatestplus.play._
+
+import org.mockito.Mockito._
 
 import play.api._
 import play.api.cache._
@@ -14,28 +17,18 @@ import models._
 import org.hablapps.codemotion14._
 import controllers.DictionaryApp
 
-class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
+class DictionarySpec extends PlaySpec with Results with MockitoSugar with OneAppPerTest {
 
-  object DSLUtils {
-    
-    def withUsers(users: User*) = Users.reset(users: _*)
+  object DictionaryTest extends Controller with DictionaryApp {
+    val userRepository = mock[UserRepository]
+    when(userRepository.getUser("mr_proper")).thenReturn(Option(User("Mr", "Proper", Option(READ_WRITE))))
 
-    def withoutUsers = withUsers()
-
-    def withWords(entries: (String, String)*) = Dictionary.reset(entries: _*)
-
-    def withoutWords = withWords()
+    val userService = new UserService(mock[UserRepository])
   }
-
-  import DSLUtils._
 
   "add service" should {
 
     "allow adding new words if the user is empowered to do so" in {
-
-      withUsers(
-	User("Mr", "Proper", Option(READ_WRITE)))
-
       val request = FakeRequest(
         POST, 
         "/", 
@@ -46,11 +39,6 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
     }
 
     "fail if the user is not empowered to do so" in {
-
-      withUsers(
-	User("Don", "Limpio", Option(READ)),
-	User("Wipp", "Express"))
-
       val request = FakeRequest(
 	POST, 
 	"/", 
@@ -67,9 +55,6 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
     }
 
     "fail if the user does not provide a `user` request" in {
-
-      withoutUsers
-
       val request = FakeRequest(POST, "/", FakeHeaders(), 
         ("new", "a brand new definition"))
       val result: Future[Result] = DictionaryApp.add(request)
@@ -81,10 +66,6 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
   "search service" should {
 
     "find an existing word if the user is empowered to do so" in {
-
-      withUsers(User("Don", "Limpio", Option(READ)))
-      withWords("known" -> "a well known word")
-
       val word = "known"
       val request = FakeRequest(GET, s"/$word")
 	.withHeaders(("user" -> "don_limpio"))
@@ -94,10 +75,6 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
     }
 
     "not find a non-existing word" in {
-
-      withUsers(User("Don", "Limpio", Option(READ)))
-      withoutWords
-
       val word = "unknown"
       val request = FakeRequest(GET, s"/$word")
 	.withHeaders(("user" -> "don_limpio"))

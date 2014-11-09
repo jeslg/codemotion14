@@ -19,6 +19,8 @@ trait DictionaryApp { this: Controller =>
   val USER_HEADER_NAME = "user"
   val FURTHER_QUERY_NAME = "further"
 
+  val userService: UserService
+
   class UserRequest[A](
     val user: User, 
     request: Request[A]) extends WrappedRequest[A](request)
@@ -26,7 +28,7 @@ trait DictionaryApp { this: Controller =>
   object UserRefiner extends ActionRefiner[Request, UserRequest] {
     def refine[A](request: Request[A]) = Future {
       val user = request.headers.get(USER_HEADER_NAME)
-	.map(Users.get(_))
+	.map(userService.getUser(_))
         .flatten
       if (user.isDefined)
 	Right(new UserRequest(user.get, request))
@@ -158,4 +160,6 @@ trait DictionaryApp { this: Controller =>
   }
 }
 
-object DictionaryApp extends Controller with DictionaryApp
+object DictionaryApp extends Controller with DictionaryApp {
+  val userService = new UserService(new CacheUserRepository)
+}
