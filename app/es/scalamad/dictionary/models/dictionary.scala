@@ -1,4 +1,4 @@
-package models.org.hablapps.codemotion14
+package es.scalamad.dictionary.models
 
 import play.api.cache.Cache
 import play.api.Play.current

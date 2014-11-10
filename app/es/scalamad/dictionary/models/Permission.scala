@@ -1,4 +1,4 @@
-package models.org.hablapps.codemotion14
+package es.scalamad.dictionary.models
 
 trait Permission
 case object READ extends Permission

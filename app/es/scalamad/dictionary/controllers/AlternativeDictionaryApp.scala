@@ -1,9 +1,9 @@
-package controllers
+package es.scalamad.dictionary.controllers
 
 import play.api._
 import play.api.mvc._
 
-trait AlternativeDictionaryApp { this: Controller =>
+object AlternativeDictionaryApp extends Controller {
   
   val TOKEN = "1234567890"
 
@@ -20,5 +20,3 @@ trait AlternativeDictionaryApp { this: Controller =>
     } else Forbidden(s"invalid token '$tk'")
   }
 }
-
-object AlternativeDictionaryApp extends Controller with AlternativeDictionaryApp

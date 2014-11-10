@@ -1,4 +1,4 @@
-package controllers
+package es.scalamad.dictionary.controllers
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -11,8 +11,7 @@ import play.api.libs.ws._
 import play.api.mvc._
 import play.api.Play.current
 
-import models._
-import org.hablapps.codemotion14._
+import es.scalamad.dictionary.models._
 
 trait DictionaryApp { 
   this: Controller with UserService with DictionaryService =>
@@ -47,7 +46,8 @@ trait DictionaryApp {
 
   }
 
-  implicit class OptionExtensions[T](option: Option[T]){
+  implicit class OptionExtensions[T](option: Option[T]) {
+
     def unless(c: => Boolean): Option[T] = 
       option.unless(_ => c)
 
@@ -65,7 +65,6 @@ trait DictionaryApp {
         Option(Forbidden(err))
           .unless(permitted(urequest.user))
       }
-
   }
 
   object ReadFilter extends PermissionFilter(
@@ -77,14 +76,14 @@ trait DictionaryApp {
     "You are not allowed to write")
 
   def wsToken: Future[String] = {
-    val rel = controllers.routes.AlternativeDictionaryApp.wsToken.url
+    val rel = routes.AlternativeDictionaryApp.wsToken.url
     val holder = WS.url(s"http://localhost:9000$rel")
     val response = holder.get
     response map (_.body)
   }
 
   def wsSearch(word: String, token: String): Future[Option[String]] = {
-    val rel = controllers.routes.AlternativeDictionaryApp.wsSearch(word)
+    val rel = routes.AlternativeDictionaryApp.wsSearch(word)
     val holder = WS.url(s"http://localhost:9000$rel").withBody(token)
     val response = holder.get
     response map { wsr =>
@@ -143,7 +142,7 @@ trait DictionaryApp {
      andThen UserLogging)(jsToWordParser) { urequest =>
        val entry@(word, _) = urequest.body
        setEntry(entry)
-       val url = controllers.routes.DictionaryApp.search(word).url
+       val url = routes.DictionaryApp.search(word).url
        Created(s"The word '$word' has been added successfully")
          .withHeaders((LOCATION -> url))
     }

@@ -1,3 +1,5 @@
+package es.scalamad.dictionary.test
+
 import scala.concurrent.Future
 
 import org.scalatest._
@@ -13,9 +15,9 @@ import play.api.mvc._
 import play.api.test._
 import play.api.test.Helpers._
 
+import es.scalamad.dictionary.{ models, controllers }
 import models._
-import org.hablapps.codemotion14._
-import controllers.DictionaryApp
+import controllers._
 
 class DictionarySpec extends PlaySpec with Results with MockitoSugar with OneAppPerTest {
 
