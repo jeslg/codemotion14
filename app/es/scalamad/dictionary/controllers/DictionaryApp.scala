@@ -115,7 +115,7 @@ trait DictionaryActions {
 
   this: Controller
     with DictionaryFunctions
-    with DictionaryService
+    with WordService
     with DictionaryUtils
     with DictionaryWebServices
     with UserService =>
@@ -137,7 +137,7 @@ trait DictionaryActions {
      andThen UserRefiner 
      andThen ReadFilter 
      andThen UserLogging).async { urequest =>
-      getEntry(word).map(d => Future(Ok(d))).getOrElse {
+      getWord(word).map(d => Future(Ok(d))).getOrElse {
 	if (isFurtherSearch(urequest)) {
 	  wsTokenAndSearch(word).map { odef =>
 	    odef.map(Ok(_)).getOrElse {
@@ -158,7 +158,7 @@ trait DictionaryActions {
      andThen WriteFilter 
      andThen UserLogging)(jsToWordParser) { urequest =>
        val entry@(word, _) = urequest.body
-       setEntry(entry)
+       setWord(entry)
        val url = routes.DictionaryApp.search(word).url
        Created(s"The word '$word' has been added successfully")
          .withHeaders((LOCATION -> url))
@@ -168,7 +168,7 @@ trait DictionaryActions {
 
 trait DictionaryWebSockets {
 
-  this: Controller with DictionaryService with DictionaryUtils =>
+  this: Controller with WordService with DictionaryUtils =>
 
   def asJson: Enumeratee[String, JsValue] = Enumeratee.map(Json.parse)
 
@@ -176,12 +176,12 @@ trait DictionaryWebSockets {
 
   def existingFilter = 
     Enumeratee.filter[(String, String)] { 
-      case (word, _) => ! (containsEntry(word))
+      case (word, _) => ! (containsWord(word))
     }
 
   def toDictionary = {
     Iteratee.foreach[(String, String)] { 
-      case (word, definition) => setEntry(word, definition)
+      case (word, definition) => setWord(word, definition)
     }
   }
 
@@ -202,8 +202,8 @@ trait DictionaryApp extends Controller
   with DictionaryWebServices
   with DictionaryWebSockets
   with UserService
-  with DictionaryService
+  with WordService
 
 object DictionaryApp extends DictionaryApp
   with CacheUserService
-  with CacheDictionaryService
+  with CacheWordService

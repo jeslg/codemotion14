@@ -4,30 +4,25 @@ import play.api.cache.Cache
 import play.api.Play.current
 import play.api.Logger
 
-trait DictionaryService {
+trait WordService {
 
-  val dictionaryRepository: DictionaryRepository
+  val wordRepository: WordRepository
 
-  def containsEntry(word: String) = 
-    dictionaryRepository.contains(word)
+  def containsWord(word: String) = wordRepository.contains(word)
 
-  def getEntry(word: String) = 
-    dictionaryRepository.get(word)
+  def getWord(word: String) = wordRepository.get(word)
 
-  def setEntry(entry: (String, String)) = 
-    dictionaryRepository.set(entry)
+  def setWord(entry: (String, String)) = wordRepository.set(entry)
 
-  def resetEntries(entries: (String, String)*) = 
-    dictionaryRepository.reset(entries: _*)
-
+  def resetWords(entries: (String, String)*) = wordRepository.reset(entries: _*)
 }
 
-trait CacheDictionaryService extends DictionaryService {
-  val dictionaryRepository: DictionaryRepository = 
-    new CacheDictionaryRepository
+trait CacheWordService extends WordService {
+  val wordRepository: WordRepository = 
+    new CacheWordRepository
 }
 
-trait DictionaryRepository {
+trait WordRepository {
 
   def contains(word: String): Boolean
 
@@ -38,21 +33,21 @@ trait DictionaryRepository {
   def reset(entries: (String, String)*): Unit
 }
 
-class CacheDictionaryRepository extends DictionaryRepository {
+class CacheWordRepository extends WordRepository {
 
-  type Dictionary = Map[String, String]
+  type Words = Map[String, String]
 
-  private def dictionary = Cache.getOrElse[Dictionary]("dictionary")(Map())
+  private def words = Cache.getOrElse[Words]("words")(Map())
 
-  def contains(word: String) = dictionary isDefinedAt word 
+  def contains(word: String) = words isDefinedAt word 
 
-  def get(word: String) = dictionary get word
+  def get(word: String) = words get word
 
   def set(entry: (String, String)) = {
     Logger.info(s"Adding word '${entry._1}' to dictionary")
-    Cache.set("dictionary", dictionary + entry)
+    Cache.set("words", words + entry)
   }
 
   def reset(entries: (String, String)*) = 
-    Cache.set("dictionary", entries.toMap)
+    Cache.set("words", entries.toMap)
 }

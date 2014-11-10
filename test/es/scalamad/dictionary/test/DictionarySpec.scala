@@ -29,8 +29,8 @@ class DictionarySpec extends PlaySpec with Results with MockitoSugar with OneApp
     ur
   }
 
-  val defaultDictionaryRepository: DictionaryRepository = {
-    val dr = mock[DictionaryRepository]
+  val defaultWordRepository: WordRepository = {
+    val dr = mock[WordRepository]
     when(dr.get("known")) thenReturn Option("a well known word")
     when(dr.get("unknown")) thenReturn None
     dr
@@ -38,10 +38,10 @@ class DictionarySpec extends PlaySpec with Results with MockitoSugar with OneApp
 
   def FakeDictionaryController(
       userRep: UserRepository = defaultUserRepository,
-      dictRep: DictionaryRepository = defaultDictionaryRepository) = 
-    new Controller with DictionaryApp with UserService with DictionaryService {
+      wordRep: WordRepository = defaultWordRepository) = 
+    new Controller with DictionaryApp with UserService with WordService {
       override val userRepository: UserRepository = userRep
-      override val dictionaryRepository: DictionaryRepository = dictRep
+      override val wordRepository: WordRepository = wordRep
     }
 
   "add service" should {
