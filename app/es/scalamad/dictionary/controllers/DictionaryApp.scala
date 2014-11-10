@@ -13,11 +13,26 @@ import play.api.Play.current
 
 import es.scalamad.dictionary.models._
 
-trait DictionaryApp { 
-  this: Controller with UserService with DictionaryService =>
+trait DictionaryUtils {
+
+  implicit class OptionExtensions[T](option: Option[T]) {
+
+    def unless(c: => Boolean): Option[T] = 
+      option.unless(_ => c)
+
+    def unless(condition: T => Boolean): Option[T] = 
+      option.filter(condition andThen (!_)) // ! condition(_)
+  }
+
+  def jsToWord(jsv: JsValue): (String, String) =
+    (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
+}
+
+trait DictionaryFunctions { 
+
+  this: Controller with DictionaryUtils with UserService =>
 
   val USER_HEADER_NAME = "user"
-  val FURTHER_QUERY_NAME = "further"
 
   class UserRequest[A](
     val user: User, 
@@ -43,19 +58,8 @@ trait DictionaryApp {
         Logger.info(s"@${urequest.user.nick} requests ${urequest.toString}")
         urequest
       }
-
   }
 
-  implicit class OptionExtensions[T](option: Option[T]) {
-
-    def unless(c: => Boolean): Option[T] = 
-      option.unless(_ => c)
-
-    def unless(condition: T => Boolean): Option[T] = 
-      option.filter(condition andThen (!_)) // ! condition(_)
-  }
-
-    
   class PermissionFilter(
       permitted: User => Boolean, 
       err: String) extends ActionFilter[UserRequest] {
@@ -74,6 +78,11 @@ trait DictionaryApp {
   object WriteFilter extends PermissionFilter(
     Permission.canWrite, 
     "You are not allowed to write")
+}
+
+trait DictionaryWebServices { 
+
+  this: Controller with DictionaryFunctions =>
 
   def wsToken: Future[String] = {
     val rel = routes.AlternativeDictionaryApp.wsToken.url
@@ -100,17 +109,23 @@ trait DictionaryApp {
       odef  <- wsSearch(word, token)
     } yield odef
   }
+}
 
-  def jsToWord(jsv: JsValue): (String, String) =
-    (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
+trait DictionaryActions {
 
-  val jsToWordParser: BodyParser[(String,String)] = 
-    parse.json map jsToWord
-
+  this: Controller
+    with DictionaryFunctions
+    with DictionaryUtils
+    with DictionaryWebServices
+    with UserService 
+    with WordService =>
+    
   def helloDictionary = 
     (Action andThen UserRefiner andThen UserLogging) {
       Ok("Welcome to the CodeMotion14 Dictionary!")
     }
+
+  val FURTHER_QUERY_NAME = "further"
 
   def isFurtherSearch[A](request: Request[A]): Boolean =
     request.queryString.contains(FURTHER_QUERY_NAME) &&
@@ -122,7 +137,7 @@ trait DictionaryApp {
      andThen UserRefiner 
      andThen ReadFilter 
      andThen UserLogging).async { urequest =>
-      getEntry(word).map(d => Future(Ok(d))).getOrElse {
+      getWord(word).map(d => Future(Ok(d))).getOrElse {
 	if (isFurtherSearch(urequest)) {
 	  wsTokenAndSearch(word).map { odef =>
 	    odef.map(Ok(_)).getOrElse {
@@ -135,31 +150,38 @@ trait DictionaryApp {
       }
     }
 
+  val jsToWordParser: BodyParser[(String,String)] = parse.json map jsToWord
+
   def add: Action[(String,String)] = {
     (Action 
      andThen UserRefiner 
      andThen WriteFilter 
      andThen UserLogging)(jsToWordParser) { urequest =>
        val entry@(word, _) = urequest.body
-       setEntry(entry)
+       setWord(entry)
        val url = routes.DictionaryApp.search(word).url
        Created(s"The word '$word' has been added successfully")
          .withHeaders((LOCATION -> url))
     }
   }
-  
+}
+
+trait DictionaryWebSockets {
+
+  this: Controller with WordService with DictionaryUtils =>
+
   def asJson: Enumeratee[String, JsValue] = Enumeratee.map(Json.parse)
 
   def asEntry = Enumeratee.map(jsToWord)
 
   def existingFilter = 
     Enumeratee.filter[(String, String)] { 
-      case (word, _) => ! (containsEntry(word))
+      case (word, _) => ! (containsWord(word))
     }
 
   def toDictionary = {
     Iteratee.foreach[(String, String)] { 
-      case (word, definition) => setEntry(word, definition)
+      case (word, definition) => setWord(word, definition)
     }
   }
 
@@ -173,7 +195,15 @@ trait DictionaryApp {
   }
 }
 
-object DictionaryApp extends Controller 
-  with DictionaryApp 
+trait DictionaryApp extends Controller
+  with DictionaryActions
+  with DictionaryFunctions
+  with DictionaryUtils
+  with DictionaryWebServices
+  with DictionaryWebSockets
+  with UserService
+  with WordService
+
+object DictionaryApp extends DictionaryApp
   with CacheUserService
-  with CacheDictionaryService
+  with CacheWordService
