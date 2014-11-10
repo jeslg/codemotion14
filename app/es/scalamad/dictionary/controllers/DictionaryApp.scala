@@ -115,10 +115,10 @@ trait DictionaryActions {
 
   this: Controller
     with DictionaryFunctions
-    with WordService
     with DictionaryUtils
     with DictionaryWebServices
-    with UserService =>
+    with UserService 
+    with WordService =>
     
   def helloDictionary = 
     (Action andThen UserRefiner andThen UserLogging) {
