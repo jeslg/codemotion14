@@ -12,13 +12,19 @@ case class User(
   def nick = s"${name.toLowerCase}_${last.toLowerCase}"
 }
 
-class UserService(repository: UserRepository) {
+trait UserService {
 
-  def getUser(nick: String) = repository.getUser(nick)
+  val userRepository: UserRepository
 
-  def addUser(user: User) = repository.addUser(user)
+  def getUser(nick: String) = userRepository.getUser(nick)
 
-  def resetUsers(users: User*) = repository.resetUsers(users: _*)
+  def addUser(user: User) = userRepository.addUser(user)
+
+  def resetUsers(users: User*) = userRepository.resetUsers(users: _*)
+}
+
+trait CacheUserService extends UserService {
+  override val userRepository: UserRepository = new CacheUserRepository
 }
 
 trait UserRepository {

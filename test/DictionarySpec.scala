@@ -27,9 +27,9 @@ class DictionarySpec extends PlaySpec with Results with MockitoSugar with OneApp
     ur
   }
 
-  def FakeDictionaryController(userRepository: UserRepository = defaultUserRepository) = 
-    new Controller with DictionaryApp {
-      override val userService = new UserService(userRepository)
+  def FakeDictionaryController(userRep: UserRepository = defaultUserRepository) = 
+    new Controller with DictionaryApp with UserService {
+      override val userRepository: UserRepository = userRep
     }
 
   "add service" should {

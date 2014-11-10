@@ -14,12 +14,10 @@ import play.api.Play.current
 import models._
 import org.hablapps.codemotion14._
 
-trait DictionaryApp { this: Controller =>
+trait DictionaryApp { this: Controller with UserService =>
 
   val USER_HEADER_NAME = "user"
   val FURTHER_QUERY_NAME = "further"
-
-  val userService: UserService
 
   class UserRequest[A](
     val user: User, 
@@ -28,7 +26,7 @@ trait DictionaryApp { this: Controller =>
   object UserRefiner extends ActionRefiner[Request, UserRequest] {
     def refine[A](request: Request[A]) = Future {
       val user = request.headers.get(USER_HEADER_NAME)
-	.map(userService.getUser(_))
+	.map(getUser(_))
         .flatten
       if (user.isDefined)
 	Right(new UserRequest(user.get, request))
@@ -160,6 +158,6 @@ trait DictionaryApp { this: Controller =>
   }
 }
 
-object DictionaryApp extends Controller with DictionaryApp {
-  val userService = new UserService(new CacheUserRepository)
-}
+object DictionaryApp extends Controller 
+  with DictionaryApp 
+  with CacheUserService
