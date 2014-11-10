@@ -14,7 +14,8 @@ import play.api.Play.current
 import models._
 import org.hablapps.codemotion14._
 
-trait DictionaryApp { this: Controller with UserService =>
+trait DictionaryApp { 
+  this: Controller with UserService with DictionaryService =>
 
   val USER_HEADER_NAME = "user"
   val FURTHER_QUERY_NAME = "further"
@@ -108,7 +109,7 @@ trait DictionaryApp { this: Controller with UserService =>
      andThen UserRefiner 
      andThen ReadFilter 
      andThen UserLogging).async { urequest =>
-      Dictionary.get(word).map(d => Future(Ok(d))).getOrElse {
+      getEntry(word).map(d => Future(Ok(d))).getOrElse {
 	if (isFurtherSearch(urequest)) {
 	  wsTokenAndSearch(word).map { odef =>
 	    odef.map(Ok(_)).getOrElse {
@@ -127,7 +128,7 @@ trait DictionaryApp { this: Controller with UserService =>
      andThen WriteFilter 
      andThen UserLogging)(jsToWordParser) { urequest =>
        val entry@(word, _) = urequest.body
-       Dictionary.set(entry)
+       setEntry(entry)
        val url = controllers.routes.DictionaryApp.search(word).url
        Created(s"The word '$word' has been added successfully")
          .withHeaders((LOCATION -> url))
@@ -139,12 +140,12 @@ trait DictionaryApp { this: Controller with UserService =>
   def asEntry = Enumeratee.map(jsToWord)
 
   def existingFilter = Enumeratee.filter[(String, String)] { case (word, _) => 
-    ! (Dictionary.contains(word))
+    ! (containsEntry(word))
   }
 
   def toDictionary = {
     Iteratee.foreach[(String, String)] { case (word, definition) =>
-      Dictionary.set(word, definition)
+      setEntry(word, definition)
     }
   }
 
@@ -161,3 +162,4 @@ trait DictionaryApp { this: Controller with UserService =>
 object DictionaryApp extends Controller 
   with DictionaryApp 
   with CacheUserService
+  with CacheDictionaryService

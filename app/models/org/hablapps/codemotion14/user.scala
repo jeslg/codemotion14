@@ -16,11 +16,11 @@ trait UserService {
 
   val userRepository: UserRepository
 
-  def getUser(nick: String) = userRepository.getUser(nick)
+  def getUser(nick: String) = userRepository.get(nick)
 
-  def addUser(user: User) = userRepository.addUser(user)
+  def addUser(user: User) = userRepository.add(user)
 
-  def resetUsers(users: User*) = userRepository.resetUsers(users: _*)
+  def resetUsers(users: User*) = userRepository.reset(users: _*)
 }
 
 trait CacheUserService extends UserService {
@@ -29,11 +29,11 @@ trait CacheUserService extends UserService {
 
 trait UserRepository {
 
-  def getUser(nick: String): Option[User]
+  def get(nick: String): Option[User]
 
-  def addUser(user: User): Unit
+  def add(user: User): Unit
 
-  def resetUsers(users: User*): Unit
+  def reset(users: User*): Unit
 }
 
 class CacheUserRepository extends UserRepository {
@@ -42,13 +42,13 @@ class CacheUserRepository extends UserRepository {
 
   private def users = Cache.getOrElse[Users]("users")(Map())
 
-  def getUser(nick: String): Option[User] = users get nick
+  def get(nick: String): Option[User] = users get nick
 
-  def addUser(user: User): Unit = {
+  def add(user: User): Unit = {
     Logger.info(s"Adding '${user.nick}' to user list.")
     Cache.set("users", users + (user.nick -> user))
   }
 
-  def resetUsers(users: User*): Unit =
+  def reset(users: User*): Unit =
     Cache.set("users", users.map(u => u.nick -> u).toMap)
 }
