@@ -83,18 +83,20 @@ class DictionarySpec extends PlaySpec with Results with MockitoSugar with OneApp
 
     "find an existing word if the user is empowered to do so" in {
       val word = "known"
-      val request = FakeRequest(GET, s"/$word")
-	.withHeaders(("user" -> "don_limpio"))
-      val result: Future[Result] = FakeDictionaryController().search(word)(request)
+      val request = 
+	FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
+      val result: Future[Result] = 
+	FakeDictionaryController().search(word)(request)
       status(result) mustEqual OK
       contentAsString(result) mustEqual "a well known word"
     }
 
     "not find a non-existing word" in {
       val word = "unknown"
-      val request = FakeRequest(GET, s"/$word")
-	.withHeaders(("user" -> "don_limpio"))
-      val result: Future[Result] = FakeDictionaryController().search(word)(request)
+      val request = 
+	FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
+      val result: Future[Result] = 
+	FakeDictionaryController().search(word)(request)
       status(result) mustEqual NOT_FOUND
       contentAsString(result) mustEqual s"The word '$word' does not exist"
     }

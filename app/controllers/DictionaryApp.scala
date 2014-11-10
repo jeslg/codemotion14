@@ -25,34 +25,47 @@ trait DictionaryApp {
     request: Request[A]) extends WrappedRequest[A](request)
 
   object UserRefiner extends ActionRefiner[Request, UserRequest] {
-    def refine[A](request: Request[A]) = Future {
-      val user = request.headers.get(USER_HEADER_NAME)
-	.map(getUser(_))
-        .flatten
-      if (user.isDefined)
-	Right(new UserRequest(user.get, request))
-      else
-	Left(Unauthorized(s"Invalid '$USER_HEADER_NAME' header"))
-    } 
+
+    def refine[A](request: Request[A]): Future[Either[Result,UserRequest[A]]] = 
+      Future {
+        request.headers
+          .get(USER_HEADER_NAME)
+          .map(getUser(_))
+          .flatten
+          .map(new UserRequest(_, request))
+          .toRight(Unauthorized(s"Invalid '$USER_HEADER_NAME' header"))
+      }
   }
 
   object UserLogging extends ActionTransformer[UserRequest, UserRequest] {
-    def transform[A](urequest: UserRequest[A]) = Future {
-      Logger.info(s"@${urequest.user.nick} requests ${urequest.toString}")
-      urequest
-    }
+
+    def transform[A](urequest: UserRequest[A]): Future[UserRequest[A]] = 
+      Future {
+        Logger.info(s"@${urequest.user.nick} requests ${urequest.toString}")
+        urequest
+      }
+
   }
 
+  implicit class OptionExtensions[T](option: Option[T]){
+    def unless(c: => Boolean): Option[T] = 
+      option.unless(_ => c)
+
+    def unless(condition: T => Boolean): Option[T] = 
+      option.filter(condition andThen (!_)) // ! condition(_)
+  }
+
+    
   class PermissionFilter(
       permitted: User => Boolean, 
       err: String) extends ActionFilter[UserRequest] {
 
-    def filter[A](urequest: UserRequest[A]) = Future {
-      if (permitted(urequest.user))
-	None
-      else
-	Option(Forbidden(err))
-    }
+    def filter[A](urequest: UserRequest[A]): Future[Option[Result]] = 
+      Future {
+        Option(Forbidden(err))
+          .unless(permitted(urequest.user))
+      }
+
   }
 
   object ReadFilter extends PermissionFilter(
@@ -76,8 +89,8 @@ trait DictionaryApp {
     val response = holder.get
     response map { wsr =>
       wsr.status match {
-	case OK => Option(wsr.body)
-	case _ => None
+        case OK => Option(wsr.body)
+        case _ => None
       }
     }
   }
@@ -92,7 +105,8 @@ trait DictionaryApp {
   def jsToWord(jsv: JsValue): (String, String) =
     (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
 
-  val jsToWordParser = parse.json map jsToWord
+  val jsToWordParser: BodyParser[(String,String)] = 
+    parse.json map jsToWord
 
   def helloDictionary = 
     (Action andThen UserRefiner andThen UserLogging) {
@@ -101,10 +115,10 @@ trait DictionaryApp {
 
   def isFurtherSearch[A](request: Request[A]): Boolean =
     request.queryString.contains(FURTHER_QUERY_NAME) &&
-      (request.queryString(FURTHER_QUERY_NAME).size > 0) && 
-      request.queryString(FURTHER_QUERY_NAME).head.toBoolean
+    request.queryString(FURTHER_QUERY_NAME).size > 0 && 
+    request.queryString(FURTHER_QUERY_NAME).head.toBoolean
 
-  def search(word: String) =
+  def search(word: String): Action[AnyContent] =
     (Action 
      andThen UserRefiner 
      andThen ReadFilter 
@@ -122,7 +136,7 @@ trait DictionaryApp {
       }
     }
 
-  def add = {
+  def add: Action[(String,String)] = {
     (Action 
      andThen UserRefiner 
      andThen WriteFilter 
@@ -134,18 +148,19 @@ trait DictionaryApp {
          .withHeaders((LOCATION -> url))
     }
   }
-
+  
   def asJson: Enumeratee[String, JsValue] = Enumeratee.map(Json.parse)
 
   def asEntry = Enumeratee.map(jsToWord)
 
-  def existingFilter = Enumeratee.filter[(String, String)] { case (word, _) => 
-    ! (containsEntry(word))
-  }
+  def existingFilter = 
+    Enumeratee.filter[(String, String)] { 
+      case (word, _) => ! (containsEntry(word))
+    }
 
   def toDictionary = {
-    Iteratee.foreach[(String, String)] { case (word, definition) =>
-      setEntry(word, definition)
+    Iteratee.foreach[(String, String)] { 
+      case (word, definition) => setEntry(word, definition)
     }
   }
 
