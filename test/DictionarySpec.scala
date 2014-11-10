@@ -19,13 +19,18 @@ import controllers.DictionaryApp
 
 class DictionarySpec extends PlaySpec with Results with MockitoSugar with OneAppPerTest {
 
-  object DictionaryTest extends Controller with DictionaryApp {
-    val userRepository = mock[UserRepository]
-    when(userRepository.getUser("mr_proper")) thenReturn Option(User("Mr", "Proper", Option(READ_WRITE)))
-    when(userRepository.getUser("don_limpio")) thenReturn Option(User("Don", "Limpio", Option(READ)))
-    when(userRepository.getUser("wipp_express")) thenReturn Option(User("Wipp", "Express"))
-    val userService = new UserService(userRepository)
+  val defaultUserRepository: UserRepository = {
+    val ur = mock[UserRepository]
+    when(ur.getUser("mr_proper")) thenReturn Option(User("Mr", "Proper", Option(READ_WRITE)))
+    when(ur.getUser("don_limpio")) thenReturn Option(User("Don", "Limpio", Option(READ)))
+    when(ur.getUser("wipp_express")) thenReturn Option(User("Wipp", "Express"))
+    ur
   }
+
+  def FakeDictionaryController(userRepository: UserRepository = defaultUserRepository) = 
+    new Controller with DictionaryApp {
+      override val userService = new UserService(userRepository)
+    }
 
   "add service" should {
 
@@ -35,7 +40,7 @@ class DictionarySpec extends PlaySpec with Results with MockitoSugar with OneApp
         "/", 
         FakeHeaders(Seq(("user", Seq("mr_proper")))),
     	("new", "a new definition"))
-      val result = DictionaryTest.add(request)
+      val result = FakeDictionaryController().add(request)
       status(result) mustEqual CREATED
     }
 
@@ -45,12 +50,12 @@ class DictionarySpec extends PlaySpec with Results with MockitoSugar with OneApp
 	"/", 
 	FakeHeaders(Seq(("user", Seq("don_limpio")))),
 	("new", "a brand new definition"))
-      val result: Future[Result] = DictionaryTest.add(request)
+      val result: Future[Result] = FakeDictionaryController().add(request)
       status(result) mustEqual FORBIDDEN
       contentAsString(result) mustEqual "You are not allowed to write"
 
       val request2 = request.withHeaders(("user", "wipp_express"))
-      val result2 = DictionaryTest.add(request2)
+      val result2 = FakeDictionaryController().add(request2)
       status(result2) mustEqual FORBIDDEN
       contentAsString(result2) mustEqual "You are not allowed to write"
     }
