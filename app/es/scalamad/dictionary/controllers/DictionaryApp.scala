@@ -4,6 +4,7 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import play.api._
+import play.api.cache.Cache
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.iteratee._
 import play.api.libs.json._
@@ -12,6 +13,20 @@ import play.api.mvc._
 import play.api.Play.current
 
 import es.scalamad.dictionary.models._
+import Service._
+
+trait DictionaryApp extends Controller
+  with DictionaryActions
+  with DictionaryFunctions
+  with DictionaryServices
+  with DictionaryUtils
+  with DictionaryWebServices
+  with DictionaryWebSockets
+  with UserService
+  with WordService
+
+object DictionaryApp extends DictionaryApp
+  with CacheDictionaryServices
 
 trait DictionaryUtils {
 
@@ -28,9 +43,25 @@ trait DictionaryUtils {
     (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
 }
 
+trait DictionaryServices { this: Controller =>
+
+  def getState: DictionaryState
+
+  def setState(state: DictionaryState): Unit
+
+  def invoke[A](service: Service[A]): A = {
+    val (ret, state) = service(getState)
+    setState(state)
+    ret
+  }
+}
+
 trait DictionaryFunctions { 
 
-  this: Controller with DictionaryUtils with UserService =>
+  this: Controller 
+    with DictionaryUtils 
+    with DictionaryServices 
+    with UserService =>
 
   val USER_HEADER_NAME = "user"
 
@@ -40,11 +71,11 @@ trait DictionaryFunctions {
 
   object UserRefiner extends ActionRefiner[Request, UserRequest] {
 
-    def refine[A](request: Request[A]): Future[Either[Result,UserRequest[A]]] = 
+    def refine[A](request: Request[A]): Future[Either[Result,UserRequest[A]]] =
       Future {
         request.headers
           .get(USER_HEADER_NAME)
-          .map(getUser(_))
+          .map(nick => invoke(getUser(nick)))
           .flatten
           .map(new UserRequest(_, request))
           .toRight(Unauthorized(s"Invalid '$USER_HEADER_NAME' header"))
@@ -115,6 +146,7 @@ trait DictionaryActions {
 
   this: Controller
     with DictionaryFunctions
+    with DictionaryServices
     with DictionaryUtils
     with DictionaryWebServices
     with UserService 
@@ -137,7 +169,7 @@ trait DictionaryActions {
      andThen UserRefiner 
      andThen ReadFilter 
      andThen UserLogging).async { urequest =>
-      getWord(word).map(d => Future(Ok(d))).getOrElse {
+      invoke(getWord(word)).map(d => Future(Ok(d))).getOrElse {
 	if (isFurtherSearch(urequest)) {
 	  wsTokenAndSearch(word).map { odef =>
 	    odef.map(Ok(_)).getOrElse {
@@ -168,7 +200,10 @@ trait DictionaryActions {
 
 trait DictionaryWebSockets {
 
-  this: Controller with WordService with DictionaryUtils =>
+  this: Controller 
+    with DictionaryServices 
+    with WordService 
+    with DictionaryUtils =>
 
   def asJson: Enumeratee[String, JsValue] = Enumeratee.map(Json.parse)
 
@@ -176,12 +211,12 @@ trait DictionaryWebSockets {
 
   def existingFilter = 
     Enumeratee.filter[(String, String)] { 
-      case (word, _) => ! (containsWord(word))
+      case (word, _) => ! (invoke(containsWord(word)))
     }
 
   def toDictionary = {
     Iteratee.foreach[(String, String)] { 
-      case (word, definition) => setWord(word, definition)
+      case (word, definition) => invoke(setWord(word, definition))
     }
   }
 
@@ -195,15 +230,25 @@ trait DictionaryWebSockets {
   }
 }
 
-trait DictionaryApp extends Controller
-  with DictionaryActions
-  with DictionaryFunctions
-  with DictionaryUtils
-  with DictionaryWebServices
-  with DictionaryWebSockets
-  with UserService
-  with WordService
+trait CacheDictionaryServices extends DictionaryServices {
 
-object DictionaryApp extends DictionaryApp
-  with CacheUserService
-  with CacheWordService
+  this: Controller =>
+
+  private val STATE_KEY = "state"
+
+  val dfUsers = Map(
+    "mr_proper"    -> User("Mr", "Proper", Option(READ_WRITE)),
+    "don_limpio"   -> User("Don", "Limpio", Option(READ)),
+    "wipp_express" -> User("Wipp", "Express", None))
+
+  val dfWords = Map(
+    "hello" -> "greeting",
+    "apple" -> "fruit")
+
+  val dfState = DictionaryState(dfUsers, dfWords)
+
+  def getState: DictionaryState = 
+    Cache.getOrElse[DictionaryState](STATE_KEY)(dfState)
+
+  def setState(state: DictionaryState): Unit = Cache.set(STATE_KEY, state)
+}
