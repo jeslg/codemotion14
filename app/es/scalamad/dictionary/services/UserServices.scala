@@ -2,7 +2,7 @@ package es.scalamad.dictionary.services
 
 import es.scalamad.dictionary.models._
 
-trait UserServices {
+trait UserServices extends DictionaryServices{ 
 
   def getUser(nick: String): Service[Option[User]] = { state =>
     (state.users.get(nick), state)

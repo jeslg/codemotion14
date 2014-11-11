@@ -4,7 +4,6 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import play.api._
-import play.api.cache.Cache
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
 import play.api.libs.iteratee._
 import play.api.libs.json._
@@ -15,18 +14,105 @@ import play.api.Play.current
 import es.scalamad.dictionary.models._
 import es.scalamad.dictionary.services._
 
-trait DictionaryApp extends Controller
-  with DictionaryActions
-  with DictionaryFunctions
-  with DictionaryStateServices
-  with DictionaryUtils
-  with DictionaryWebServices
-  with DictionaryWebSockets
-  with UserServices
-  with WordServices
 
-object DictionaryApp extends DictionaryApp
-  with CacheDictionaryStateServices
+object DictionaryController extends DictionaryController
+  with CacheDictionaryServices
+
+trait DictionaryController extends Controller
+  with DictionaryActions
+  with DictionaryWebSockets
+  
+trait DictionaryActions extends Controller
+  with AlternativeDictionary 
+  with DictionaryFunctions
+  with DictionaryUtils
+  with DictionaryServices
+  with UserServices 
+  with WordServices{
+
+  /* GET / */
+
+  def helloDictionary = 
+    (Action andThen UserRefiner andThen UserLogging) {
+      Ok("Welcome to the CodeMotion14 Dictionary!")
+    }
+
+  /* GET /:word */
+
+  def search(word: String): Action[AnyContent] =
+    (Action 
+     andThen UserRefiner 
+     andThen ReadFilter 
+     andThen UserLogging).async { urequest =>
+      run(getWord(word)).map(d => Future(Ok(d))).getOrElse {
+        if (isFurtherSearch(urequest)) {
+          wsTokenAndSearch(word).map { odef =>
+            odef.map(Ok(_)).getOrElse {
+              NotFound(s"The word '$word' does not exist")
+            }
+          }
+        } else {
+          Future(NotFound(s"The word '$word' does not exist"))
+        }
+      }
+    }
+
+  val FURTHER_QUERY_NAME = "further"
+
+  def isFurtherSearch[A](request: Request[A]): Boolean =
+    request.queryString.contains(FURTHER_QUERY_NAME) &&
+    request.queryString(FURTHER_QUERY_NAME).size > 0 && 
+    request.queryString(FURTHER_QUERY_NAME).head.toBoolean
+
+  /* POST / */
+
+  def add: Action[(String,String)] = {
+    (Action 
+     andThen UserRefiner 
+     andThen WriteFilter 
+     andThen UserLogging)(jsToWordParser) { urequest =>
+       val entry@(word, _) = urequest.body
+       setWord(entry)
+       val url = routes.DictionaryController.search(word).url
+       Created(s"The word '$word' has been added successfully")
+         .withHeaders((LOCATION -> url))
+    }
+  }
+  
+  val jsToWordParser: BodyParser[(String,String)] = parse.json map jsToWord
+
+}
+
+trait DictionaryWebSockets { this: Controller 
+    with DictionaryServices 
+    with WordServices 
+    with DictionaryUtils =>
+
+  /*
+   * GET /socket/add. This can be tested by using: http://websocket.org/echo.html
+   */
+   
+  def socketAdd = WebSocket.using[String] { request =>
+    val in = asJson ><> asEntry ><> existingFilter &>> toDictionary
+    val out = Enumerator("You're using the Dictionary WebSocket Service")
+    (in, out)
+  }
+
+  def asJson: Enumeratee[String, JsValue] = Enumeratee.map(Json.parse)
+
+  def asEntry = Enumeratee.map(jsToWord)
+
+  def existingFilter = 
+    Enumeratee.filter[(String, String)] { 
+      case (word, _) => ! (run(containsWord(word)))
+    }
+
+  def toDictionary = {
+    Iteratee.foreach[(String, String)] { 
+      case (word, definition) => run(setWord(word, definition))
+    }
+  }
+}
 
 trait DictionaryUtils {
 
@@ -43,24 +129,11 @@ trait DictionaryUtils {
     (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
 }
 
-trait DictionaryStateServices { this: Controller =>
-
-  def getState: DictionaryState
-
-  def setState(state: DictionaryState): DictionaryStateServices
-
-  def invoke[A](service: Service[A]): A = {
-    val (ret, state) = service(getState)
-    setState(state)
-    ret
-  }
-}
-
 trait DictionaryFunctions { 
 
   this: Controller 
     with DictionaryUtils 
-    with DictionaryStateServices 
+    with DictionaryServices 
     with UserServices =>
 
   val USER_HEADER_NAME = "user"
@@ -75,7 +148,7 @@ trait DictionaryFunctions {
       Future {
         request.headers
           .get(USER_HEADER_NAME)
-          .map(nick => invoke(getUser(nick)))
+          .map(nick => run(getUser(nick)))
           .flatten
           .map(new UserRequest(_, request))
           .toRight(Unauthorized(s"Invalid '$USER_HEADER_NAME' header"))
@@ -111,19 +184,19 @@ trait DictionaryFunctions {
     "You are not allowed to write")
 }
 
-trait DictionaryWebServices { 
+trait AlternativeDictionary { 
 
   this: Controller with DictionaryFunctions =>
 
   def wsToken: Future[String] = {
-    val rel = routes.AlternativeDictionaryApp.wsToken.url
+    val rel = routes.AlternativeDictionaryController.wsToken.url
     val holder = WS.url(s"http://localhost:9000$rel")
     val response = holder.get
     response map (_.body)
   }
 
   def wsSearch(word: String, token: String): Future[Option[String]] = {
-    val rel = routes.AlternativeDictionaryApp.wsSearch(word)
+    val rel = routes.AlternativeDictionaryController.wsSearch(word)
     val holder = WS.url(s"http://localhost:9000$rel").withBody(token)
     val response = holder.get
     response map { wsr =>
@@ -142,114 +215,5 @@ trait DictionaryWebServices {
   }
 }
 
-trait DictionaryActions {
 
-  this: Controller
-    with DictionaryFunctions
-    with DictionaryStateServices
-    with DictionaryUtils
-    with DictionaryWebServices
-    with UserServices 
-    with WordServices =>
-    
-  def helloDictionary = 
-    (Action andThen UserRefiner andThen UserLogging) {
-      Ok("Welcome to the CodeMotion14 Dictionary!")
-    }
 
-  val FURTHER_QUERY_NAME = "further"
-
-  def isFurtherSearch[A](request: Request[A]): Boolean =
-    request.queryString.contains(FURTHER_QUERY_NAME) &&
-    request.queryString(FURTHER_QUERY_NAME).size > 0 && 
-    request.queryString(FURTHER_QUERY_NAME).head.toBoolean
-
-  def search(word: String): Action[AnyContent] =
-    (Action 
-     andThen UserRefiner 
-     andThen ReadFilter 
-     andThen UserLogging).async { urequest =>
-      invoke(getWord(word)).map(d => Future(Ok(d))).getOrElse {
-	if (isFurtherSearch(urequest)) {
-	  wsTokenAndSearch(word).map { odef =>
-	    odef.map(Ok(_)).getOrElse {
-	      NotFound(s"The word '$word' does not exist")
-	    }
-	  }
-	} else {
-	  Future(NotFound(s"The word '$word' does not exist"))
-	}
-      }
-    }
-
-  val jsToWordParser: BodyParser[(String,String)] = parse.json map jsToWord
-
-  def add: Action[(String,String)] = {
-    (Action 
-     andThen UserRefiner 
-     andThen WriteFilter 
-     andThen UserLogging)(jsToWordParser) { urequest =>
-       val entry@(word, _) = urequest.body
-       setWord(entry)
-       val url = routes.DictionaryApp.search(word).url
-       Created(s"The word '$word' has been added successfully")
-         .withHeaders((LOCATION -> url))
-    }
-  }
-}
-
-trait DictionaryWebSockets {
-
-  this: Controller 
-    with DictionaryStateServices 
-    with WordServices 
-    with DictionaryUtils =>
-
-  def asJson: Enumeratee[String, JsValue] = Enumeratee.map(Json.parse)
-
-  def asEntry = Enumeratee.map(jsToWord)
-
-  def existingFilter = 
-    Enumeratee.filter[(String, String)] { 
-      case (word, _) => ! (invoke(containsWord(word)))
-    }
-
-  def toDictionary = {
-    Iteratee.foreach[(String, String)] { 
-      case (word, definition) => invoke(setWord(word, definition))
-    }
-  }
-
-  /*
-   * This can be tested by using: http://websocket.org/echo.html
-   */
-  def socketAdd = WebSocket.using[String] { request =>
-    val in = asJson ><> asEntry ><> existingFilter &>> toDictionary
-    val out = Enumerator("You're using the Dictionary WebSocket Service")
-    (in, out)
-  }
-}
-
-trait CacheDictionaryStateServices extends DictionaryStateServices {
-
-  this: Controller =>
-
-  private val STATE_KEY = "state"
-
-  val dfState = DictionaryState(
-    Map(
-      "mr_proper"    -> User("Mr", "Proper", Option(READ_WRITE)),
-      "don_limpio"   -> User("Don", "Limpio", Option(READ)),
-      "wipp_express" -> User("Wipp", "Express", None)), 
-    Map(
-      "hello" -> "greeting",
-      "apple" -> "fruit"))
-
-  def getState: DictionaryState = 
-    Cache.getOrElse[DictionaryState](STATE_KEY)(dfState)
-
-  def setState(state: DictionaryState) = {
-    Cache.set(STATE_KEY, state)
-    this
-  }
-}

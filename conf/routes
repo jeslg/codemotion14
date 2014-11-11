@@ -4,20 +4,16 @@
 
 # Dictionary Routes
 
-GET    /			es.scalamad.dictionary.controllers.DictionaryApp.helloDictionary
+GET    /			es.scalamad.dictionary.controllers.DictionaryController.helloDictionary
 
-POST   /			es.scalamad.dictionary.controllers.DictionaryApp.add
+POST   /			es.scalamad.dictionary.controllers.DictionaryController.add
 
-GET    /:word			es.scalamad.dictionary.controllers.DictionaryApp.search(word)
+GET    /:word			es.scalamad.dictionary.controllers.DictionaryController.search(word)
 
-GET    /socket/add		es.scalamad.dictionary.controllers.DictionaryApp.socketAdd
-
-# User management
-
-
+GET    /socket/add		es.scalamad.dictionary.controllers.DictionaryController.socketAdd
 
 # Alternative Dictionary Routes
 
-GET    /ws/token		es.scalamad.dictionary.controllers.AlternativeDictionaryApp.wsToken
+GET    /ws/token		es.scalamad.dictionary.controllers.AlternativeDictionaryController.wsToken
 
-GET    /ws/:word		es.scalamad.dictionary.controllers.AlternativeDictionaryApp.wsSearch(word)
+GET    /ws/:word		es.scalamad.dictionary.controllers.AlternativeDictionaryController.wsSearch(word)

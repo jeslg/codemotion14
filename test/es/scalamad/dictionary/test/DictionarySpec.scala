@@ -13,21 +13,22 @@ import play.api.mvc._
 import play.api.test._
 import play.api.test.Helpers._
 
-import es.scalamad.dictionary.{ models, controllers }
+import es.scalamad.dictionary.{ models, controllers, services }
 import models._
+import services._
 import controllers._
 
 class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
 
-  def FakeDictionaryController(state: DictionaryState): DictionaryApp = 
-    new DictionaryApp {
-      override def getState: DictionaryState = state
+  def FakeDictionaryController(state: ApplicationState): DictionaryController = 
+    new DictionaryController {
+      override def getState: ApplicationState = state
       // XXX: Do we really need to implement this?
-      override def setState(state: DictionaryState): DictionaryStateServices = 
-	FakeDictionaryController(state)
+      override def setState(state: ApplicationState): DictionaryServices = 
+        FakeDictionaryController(state)
     }
 
-  val dfState = DictionaryState(
+  val dfState = ApplicationState(
     Map(
       "mr_proper"    -> User("Mr", "Proper", Option(READ_WRITE)),
       "don_limpio"   -> User("Don", "Limpio", Option(READ)),
@@ -76,9 +77,9 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
     "find an existing word if the user is empowered to do so" in {
       val word = "known"
       val request = 
-	FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
+        FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
       val result: Future[Result] = 
-	FakeDictionaryController(dfState).search(word)(request)
+        FakeDictionaryController(dfState).search(word)(request)
       status(result) mustEqual OK
       contentAsString(result) mustEqual "a well known word"
     }
@@ -86,9 +87,9 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
     "not find a non-existing word" in {
       val word = "unknown"
       val request = 
-	FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
+        FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
       val result: Future[Result] = 
-	FakeDictionaryController(dfState).search(word)(request)
+        FakeDictionaryController(dfState).search(word)(request)
       status(result) mustEqual NOT_FOUND
       contentAsString(result) mustEqual s"The word '$word' does not exist"
     }
