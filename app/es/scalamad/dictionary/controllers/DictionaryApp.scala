@@ -18,7 +18,7 @@ import es.scalamad.dictionary.services._
 trait DictionaryApp extends Controller
   with DictionaryActions
   with DictionaryFunctions
-  with DictionaryServices
+  with DictionaryStateServices
   with DictionaryUtils
   with DictionaryWebServices
   with DictionaryWebSockets
@@ -26,7 +26,7 @@ trait DictionaryApp extends Controller
   with WordServices
 
 object DictionaryApp extends DictionaryApp
-  with CacheDictionaryServices
+  with CacheDictionaryStateServices
 
 trait DictionaryUtils {
 
@@ -43,11 +43,11 @@ trait DictionaryUtils {
     (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
 }
 
-trait DictionaryServices { this: Controller =>
+trait DictionaryStateServices { this: Controller =>
 
   def getState: DictionaryState
 
-  def setState(state: DictionaryState): DictionaryServices
+  def setState(state: DictionaryState): DictionaryStateServices
 
   def invoke[A](service: Service[A]): A = {
     val (ret, state) = service(getState)
@@ -60,7 +60,7 @@ trait DictionaryFunctions {
 
   this: Controller 
     with DictionaryUtils 
-    with DictionaryServices 
+    with DictionaryStateServices 
     with UserServices =>
 
   val USER_HEADER_NAME = "user"
@@ -146,7 +146,7 @@ trait DictionaryActions {
 
   this: Controller
     with DictionaryFunctions
-    with DictionaryServices
+    with DictionaryStateServices
     with DictionaryUtils
     with DictionaryWebServices
     with UserServices 
@@ -201,7 +201,7 @@ trait DictionaryActions {
 trait DictionaryWebSockets {
 
   this: Controller 
-    with DictionaryServices 
+    with DictionaryStateServices 
     with WordServices 
     with DictionaryUtils =>
 
@@ -230,7 +230,7 @@ trait DictionaryWebSockets {
   }
 }
 
-trait CacheDictionaryServices extends DictionaryServices {
+trait CacheDictionaryStateServices extends DictionaryStateServices {
 
   this: Controller =>
 

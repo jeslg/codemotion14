@@ -6,8 +6,6 @@ import org.scalatest._
 import org.scalatest.mock._
 import org.scalatestplus.play._
 
-import org.mockito.Mockito._
-
 import play.api._
 import play.api.cache._
 import play.api.libs.json._
@@ -24,8 +22,8 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
   def FakeDictionaryController(state: DictionaryState): DictionaryApp = 
     new DictionaryApp {
       override def getState: DictionaryState = state
-      // XXX: Do I really care about implementing this?
-      override def setState(state: DictionaryState): DictionaryServices = 
+      // XXX: Do we really need to implement this?
+      override def setState(state: DictionaryState): DictionaryStateServices = 
 	FakeDictionaryController(state)
     }
 
