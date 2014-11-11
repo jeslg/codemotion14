@@ -22,8 +22,8 @@ trait DictionaryApp extends Controller
   with DictionaryUtils
   with DictionaryWebServices
   with DictionaryWebSockets
-  with UserService
-  with WordService
+  with UserServices
+  with WordServices
 
 object DictionaryApp extends DictionaryApp
   with CacheDictionaryServices
@@ -61,7 +61,7 @@ trait DictionaryFunctions {
   this: Controller 
     with DictionaryUtils 
     with DictionaryServices 
-    with UserService =>
+    with UserServices =>
 
   val USER_HEADER_NAME = "user"
 
@@ -149,8 +149,8 @@ trait DictionaryActions {
     with DictionaryServices
     with DictionaryUtils
     with DictionaryWebServices
-    with UserService 
-    with WordService =>
+    with UserServices 
+    with WordServices =>
     
   def helloDictionary = 
     (Action andThen UserRefiner andThen UserLogging) {
@@ -202,7 +202,7 @@ trait DictionaryWebSockets {
 
   this: Controller 
     with DictionaryServices 
-    with WordService 
+    with WordServices 
     with DictionaryUtils =>
 
   def asJson: Enumeratee[String, JsValue] = Enumeratee.map(Json.parse)
