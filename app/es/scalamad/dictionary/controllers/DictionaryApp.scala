@@ -47,7 +47,7 @@ trait DictionaryServices { this: Controller =>
 
   def getState: DictionaryState
 
-  def setState(state: DictionaryState): Unit
+  def setState(state: DictionaryState): DictionaryServices
 
   def invoke[A](service: Service[A]): A = {
     val (ret, state) = service(getState)
