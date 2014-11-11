@@ -236,16 +236,14 @@ trait CacheDictionaryServices extends DictionaryServices {
 
   private val STATE_KEY = "state"
 
-  val dfUsers = Map(
-    "mr_proper"    -> User("Mr", "Proper", Option(READ_WRITE)),
-    "don_limpio"   -> User("Don", "Limpio", Option(READ)),
-    "wipp_express" -> User("Wipp", "Express", None))
-
-  val dfWords = Map(
-    "hello" -> "greeting",
-    "apple" -> "fruit")
-
-  val dfState = DictionaryState(dfUsers, dfWords)
+  val dfState = DictionaryState(
+    Map(
+      "mr_proper"    -> User("Mr", "Proper", Option(READ_WRITE)),
+      "don_limpio"   -> User("Don", "Limpio", Option(READ)),
+      "wipp_express" -> User("Wipp", "Express", None)), 
+    Map(
+      "hello" -> "greeting",
+      "apple" -> "fruit"))
 
   def getState: DictionaryState = 
     Cache.getOrElse[DictionaryState](STATE_KEY)(dfState)

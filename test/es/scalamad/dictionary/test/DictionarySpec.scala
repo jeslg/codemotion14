@@ -19,30 +19,21 @@ import es.scalamad.dictionary.{ models, controllers }
 import models._
 import controllers._
 
-class DictionarySpec extends PlaySpec with Results with MockitoSugar with OneAppPerTest {
+class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
 
-  val defaultUserRepository: UserRepository = {
-    val ur = mock[UserRepository]
-    when(ur.get("mr_proper")) thenReturn Option(User("Mr", "Proper", Option(READ_WRITE)))
-    when(ur.get("don_limpio")) thenReturn Option(User("Don", "Limpio", Option(READ)))
-    when(ur.get("wipp_express")) thenReturn Option(User("Wipp", "Express"))
-    ur
+  def FakeDictionaryController(state: DictionaryState) = new DictionaryApp {
+    
+    override def getState: DictionaryState = state
+
+    override def setState(state: DictionaryState): Unit = ()
   }
 
-  val defaultWordRepository: WordRepository = {
-    val dr = mock[WordRepository]
-    when(dr.get("known")) thenReturn Option("a well known word")
-    when(dr.get("unknown")) thenReturn None
-    dr
-  }
-
-  def FakeDictionaryController(
-      userRep: UserRepository = defaultUserRepository,
-      wordRep: WordRepository = defaultWordRepository) = 
-    new Controller with DictionaryApp with UserService with WordService {
-      override val userRepository: UserRepository = userRep
-      override val wordRepository: WordRepository = wordRep
-    }
+  val dfState = DictionaryState(
+    Map(
+      "mr_proper"    -> User("Mr", "Proper", Option(READ_WRITE)),
+      "don_limpio"   -> User("Don", "Limpio", Option(READ)),
+      "wipp_express" -> User("Wipp", "Express", None)), 
+    Map("known" -> "a well known word"))
 
   "add service" should {
 
@@ -52,7 +43,7 @@ class DictionarySpec extends PlaySpec with Results with MockitoSugar with OneApp
         "/", 
         FakeHeaders(Seq(("user", Seq("mr_proper")))),
     	("new", "a new definition"))
-      val result = FakeDictionaryController().add(request)
+      val result = FakeDictionaryController(dfState).add(request)
       status(result) mustEqual CREATED
     }
 
@@ -62,12 +53,12 @@ class DictionarySpec extends PlaySpec with Results with MockitoSugar with OneApp
 	"/", 
 	FakeHeaders(Seq(("user", Seq("don_limpio")))),
 	("new", "a brand new definition"))
-      val result: Future[Result] = FakeDictionaryController().add(request)
+      val result: Future[Result] = FakeDictionaryController(dfState).add(request)
       status(result) mustEqual FORBIDDEN
       contentAsString(result) mustEqual "You are not allowed to write"
 
       val request2 = request.withHeaders(("user", "wipp_express"))
-      val result2 = FakeDictionaryController().add(request2)
+      val result2 = FakeDictionaryController(dfState).add(request2)
       status(result2) mustEqual FORBIDDEN
       contentAsString(result2) mustEqual "You are not allowed to write"
     }
@@ -75,7 +66,7 @@ class DictionarySpec extends PlaySpec with Results with MockitoSugar with OneApp
     "fail if the user does not provide a `user` request" in {
       val request = FakeRequest(POST, "/", FakeHeaders(), 
         ("new", "a brand new definition"))
-      val result: Future[Result] = FakeDictionaryController().add(request)
+      val result: Future[Result] = FakeDictionaryController(dfState).add(request)
       status(result) mustEqual UNAUTHORIZED
       contentAsString(result) mustEqual "Invalid 'user' header"
     }
@@ -88,7 +79,7 @@ class DictionarySpec extends PlaySpec with Results with MockitoSugar with OneApp
       val request = 
 	FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
       val result: Future[Result] = 
-	FakeDictionaryController().search(word)(request)
+	FakeDictionaryController(dfState).search(word)(request)
       status(result) mustEqual OK
       contentAsString(result) mustEqual "a well known word"
     }
@@ -98,7 +89,7 @@ class DictionarySpec extends PlaySpec with Results with MockitoSugar with OneApp
       val request = 
 	FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
       val result: Future[Result] = 
-	FakeDictionaryController().search(word)(request)
+	FakeDictionaryController(dfState).search(word)(request)
       status(result) mustEqual NOT_FOUND
       contentAsString(result) mustEqual s"The word '$word' does not exist"
     }
