@@ -13,7 +13,7 @@ import play.api.mvc._
 import play.api.Play.current
 
 import es.scalamad.dictionary.models._
-import Service._
+import es.scalamad.dictionary.services._
 
 trait DictionaryApp extends Controller
   with DictionaryActions
@@ -248,5 +248,8 @@ trait CacheDictionaryServices extends DictionaryServices {
   def getState: DictionaryState = 
     Cache.getOrElse[DictionaryState](STATE_KEY)(dfState)
 
-  def setState(state: DictionaryState): Unit = Cache.set(STATE_KEY, state)
+  def setState(state: DictionaryState) = {
+    Cache.set(STATE_KEY, state)
+    this
+  }
 }

@@ -21,12 +21,13 @@ import controllers._
 
 class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
 
-  def FakeDictionaryController(state: DictionaryState) = new DictionaryApp {
-    
-    override def getState: DictionaryState = state
-
-    override def setState(state: DictionaryState): Unit = ()
-  }
+  def FakeDictionaryController(state: DictionaryState): DictionaryApp = 
+    new DictionaryApp {
+      override def getState: DictionaryState = state
+      // XXX: Do I really care about implementing this?
+      override def setState(state: DictionaryState): DictionaryServices = 
+	FakeDictionaryController(state)
+    }
 
   val dfState = DictionaryState(
     Map(
