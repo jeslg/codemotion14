@@ -27,14 +27,13 @@ trait DictionaryActions extends Controller
   with DictionaryUtils
   with DictionaryServices
   with UserServices 
-  with WordServices{
+  with WordServices {
 
   // GET /
 
-  def helloDictionary = 
-    (Action andThen UserRefiner andThen UserLogging) {
-      Ok("Welcome to the CodeMotion14 Dictionary!")
-    }
+  def helloDictionary = Action {
+    Ok("Welcome to the CodeMotion14 Dictionary!")
+  }
 
   // GET /:word
 
