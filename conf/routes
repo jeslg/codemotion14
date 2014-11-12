@@ -12,8 +12,8 @@ GET    /:word			es.scalamad.dictionary.controllers.DictionaryController.search(w
 
 GET    /socket/add		es.scalamad.dictionary.controllers.DictionaryController.socketAdd
 
-# Alternative Dictionary Routes
+# External Dictionary
 
-GET    /ws/token		es.scalamad.dictionary.controllers.AlternativeDictionaryController.wsToken
+GET    /ws/token		es.scalamad.dictionary.controllers.CollinsDictionaryController.wsToken
 
-GET    /ws/:word		es.scalamad.dictionary.controllers.AlternativeDictionaryController.wsSearch(word)
+GET    /ws/:word		es.scalamad.dictionary.controllers.CollinsDictionaryController.wsSearch(word)

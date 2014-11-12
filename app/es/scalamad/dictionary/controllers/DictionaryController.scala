@@ -14,7 +14,6 @@ import play.api.Play.current
 import es.scalamad.dictionary.models._
 import es.scalamad.dictionary.services._
 
-
 object DictionaryController extends DictionaryController
   with CacheDictionaryServices
 
@@ -23,21 +22,21 @@ trait DictionaryController extends Controller
   with DictionaryWebSockets
   
 trait DictionaryActions extends Controller
-  with AlternativeDictionary 
+  with CollinsDictionary 
   with DictionaryFunctions
   with DictionaryUtils
   with DictionaryServices
   with UserServices 
   with WordServices{
 
-  /* GET / */
+  // GET /
 
   def helloDictionary = 
     (Action andThen UserRefiner andThen UserLogging) {
       Ok("Welcome to the CodeMotion14 Dictionary!")
     }
 
-  /* GET /:word */
+  // GET /:word
 
   def search(word: String): Action[AnyContent] =
     (Action 
@@ -64,7 +63,7 @@ trait DictionaryActions extends Controller
     request.queryString(FURTHER_QUERY_NAME).size > 0 && 
     request.queryString(FURTHER_QUERY_NAME).head.toBoolean
 
-  /* POST / */
+  // POST /
 
   def add: Action[(String,String)] = {
     (Action 
@@ -72,7 +71,7 @@ trait DictionaryActions extends Controller
      andThen WriteFilter 
      andThen UserLogging)(jsToWordParser) { urequest =>
        val entry@(word, _) = urequest.body
-       setWord(entry)
+       run(setWord(entry))
        val url = routes.DictionaryController.search(word).url
        Created(s"The word '$word' has been added successfully")
          .withHeaders((LOCATION -> url))
@@ -80,7 +79,6 @@ trait DictionaryActions extends Controller
   }
   
   val jsToWordParser: BodyParser[(String,String)] = parse.json map jsToWord
-
 }
 
 trait DictionaryWebSockets { this: Controller 
@@ -89,7 +87,9 @@ trait DictionaryWebSockets { this: Controller
     with DictionaryUtils =>
 
   /*
-   * GET /socket/add. This can be tested by using: http://websocket.org/echo.html
+   * GET /socket/add 
+   * 
+   * This can be tested by using: http://websocket.org/echo.html
    */
    
   def socketAdd = WebSocket.using[String] { request =>
@@ -129,9 +129,7 @@ trait DictionaryUtils {
     (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
 }
 
-trait DictionaryFunctions { 
-
-  this: Controller 
+trait DictionaryFunctions { this: Controller 
     with DictionaryUtils 
     with DictionaryServices 
     with UserServices =>
@@ -184,19 +182,17 @@ trait DictionaryFunctions {
     "You are not allowed to write")
 }
 
-trait AlternativeDictionary { 
-
-  this: Controller with DictionaryFunctions =>
+trait CollinsDictionary { this: Controller with DictionaryFunctions =>
 
   def wsToken: Future[String] = {
-    val rel = routes.AlternativeDictionaryController.wsToken.url
+    val rel = routes.CollinsDictionaryController.wsToken.url
     val holder = WS.url(s"http://localhost:9000$rel")
     val response = holder.get
     response map (_.body)
   }
 
   def wsSearch(word: String, token: String): Future[Option[String]] = {
-    val rel = routes.AlternativeDictionaryController.wsSearch(word)
+    val rel = routes.CollinsDictionaryController.wsSearch(word)
     val holder = WS.url(s"http://localhost:9000$rel").withBody(token)
     val response = holder.get
     response map { wsr =>
@@ -214,6 +210,3 @@ trait AlternativeDictionary {
     } yield odef
   }
 }
-
-
-

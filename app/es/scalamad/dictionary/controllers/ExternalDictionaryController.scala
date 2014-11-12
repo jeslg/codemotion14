@@ -3,7 +3,7 @@ package es.scalamad.dictionary.controllers
 import play.api._
 import play.api.mvc._
 
-object AlternativeDictionaryController extends Controller {
+object CollinsDictionaryController extends Controller {
   
   val TOKEN = "1234567890"
 

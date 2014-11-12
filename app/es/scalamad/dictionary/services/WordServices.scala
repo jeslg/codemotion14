@@ -2,7 +2,7 @@ package es.scalamad.dictionary.services
 
 import es.scalamad.dictionary.models._
 
-trait WordServices extends DictionaryServices{
+trait WordServices extends DictionaryServices {
 
   def containsWord(word: String): Service[Boolean] = { state =>
     (state.words.contains(word), state)

@@ -5,7 +5,6 @@ import play.api.Play.current
 
 import es.scalamad.dictionary.models._
 
-
 trait DictionaryServices {
 
   type Service[A] = ApplicationState => (A, ApplicationState)
@@ -19,7 +18,6 @@ trait DictionaryServices {
     setState(state)
     ret
   }
-
 }
 
 trait CacheDictionaryServices extends DictionaryServices {
