@@ -225,6 +225,26 @@ val v: Int = t match {
 
 }
 
+trait Arrows{
+
+type Function[-T,+R]
+
+type KleisliOption[-T,R] = T => Option[R]
+
+type KleisliMyEffect[-T,R] = T => (Logging, Option[R])
+
+type IterateeOption[T,E] = ... 
+
+type List[T] = ... 
+
+type Integer = ... 
+
+}
+
+
+
+}
+
 
 
 
