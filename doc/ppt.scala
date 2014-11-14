@@ -58,7 +58,27 @@ val scale: Int => (Image => Image)
 
 }
 
-trait Composition{
+trait Composition1{
+
+def parseInt(i: String): Int = 
+  Integer.parseInt(i)
+
+def factorial(n: Int): Int = 
+  if (n==0) 1
+  else n * factorail(n-1)
+
+def main(s: String): Int = 
+  factorial(parseInt(s))
+
+def compose(g: Int => Int, f: String => Int): String => Int = 
+  (s: String) =>  g(f(x))
+
+def main2: String => Int = compose(factorial, parseInt)
+
+}
+
+
+trait Composition2{
 
 def compose[A,B,C](g: B => C, f: A => B): A => C 
 
@@ -77,3 +97,24 @@ trait Function1[-T1, +R] extends AnyRef {
 }
 
 }
+
+
+trait SideEffects{
+
+def factorial(n: Int): Int = 
+  if (n < 0) 
+    throw new IllegalArgumentException
+  else {
+    val result = if (n==0) 1 else n * factorial(n-1)
+    println(s"factorial($n)=$result")
+    result
+  }  
+
+}
+
+
+
+
+
+
+
