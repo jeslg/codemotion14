@@ -239,6 +239,12 @@ type List[T] = ...
 
 type Integer = ... 
 
+def composeK[A,B,C](g: B => Option[C], f: A => Option[B]): A => Option[C] = 
+  (a: A) => f(a) match {
+    case None => None
+    case Some(b) => g(b)
+  }
+
 }
 
 
