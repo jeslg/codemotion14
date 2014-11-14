@@ -252,9 +252,9 @@ trait Ideal{
 
 def factorial1(n: Int): (Logging, Option[Int]) = 
   if (n < 0) 
-    (Error(s"factorial($n) = error: negative number"), None)
+    log(Error(s"factorial($n) = error: negative number"))
   else if (n == 0) 
-    (Debug(s"factorial($n)=1"), Some(1))
+    (Debug(s"factorial($n)=1"), Option(1))
   else {
     for {
       rec_result <- factorial(n-1) 
