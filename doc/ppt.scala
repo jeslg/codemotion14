@@ -248,6 +248,19 @@ def composeK[A,B,C](g: B => Option[C], f: A => Option[B]): A => Option[C] =
 }
 
 
+trait Ideal{
+
+def factorial1(n: Int): (Logging, Option[Int]) = 
+  if (n < 0) 
+    (Error(s"factorial($n) = error: negative number"), None)
+  else if (n == 0) 
+    (Debug(s"factorial($n)=1"), Some(1))
+  else {
+    for {
+      rec_result <- factorial(n-1) 
+      _ <- log(Debug(s"factorial($n)=$result"))
+    } yield n * rec_result
+  }
 
 }
 
