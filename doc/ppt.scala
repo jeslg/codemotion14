@@ -1,25 +1,59 @@
-object Slide1{
+trait Functions{
 
-  val factorial: Int => Int
+val factorial: Int => Int
 
-  val scale: Int => Image => Image
+val scale: (Int, Image) => Image
 
-  val animation: Function1[Double, Image]
+val animation: Function1[Double, Image]
 
-  val server: Request => State => (Result, State)
+val server: Request => State => (Result, State)
 
-  val … << choose your favourite domain >>
+val … << choose your favourite domain >>
 
 }
 
-object Slide2{
+trait Functions2{
 
-  def factorial(i: Int): Int = ???
+val factorial: Function1[Int, Int]
 
-  def scale(i: Int)(img1: Image): Image
+val scale: Function2[Int, Image, Image]
 
-  def animation: Function1[Double, Image]
+val animation: Function1[Double, Image]
 
-  def server(req: Request)(implicit ctx: State): (Result, State)
+val server: Function1[Request, Function1[State, (Result, State)]
+
+val … << choose your favourite domain >>
+
+}
+
+trait Defs{
+
+def factorial(i: Int): Int = ???
+
+def scale(i: Int)(img1: Image): Image
+
+def animation: Function1[Double, Image]
+
+def server(req: Request)(implicit ctx: State): (Result, State)
+
+def … << choose your favourite domain >>
+
+}
+
+trait Values{
+
+val i: Int = 3
+
+val image: Image = bitmap(“file.png”)
+
+val state: State = (users, entries)
+
+val users: List[User] = List(user1,user2)
+
+val user1: User = User(name=“juan”, age=21)
+
+val factorial: Int => Int
+
+val scale: Int => (Image => Image)
 
 }
