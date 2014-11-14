@@ -113,7 +113,99 @@ def factorial(n: Int): Int =
 }
 
 
+trait SideEffects2{
 
+sealed trait Option[+T]
+case object None extends Option[Nothing]
+case class Some[+T](value: T) extends Option[T]
+
+sealed trait Logging
+case class Debug(msg: String) extends Logging
+case class Error(msg: String) extends Logging
+case class Multilog(logs: List[Logging]) extends Logging
+
+def parseInt(s: String): (Logging, Option[Int]) = 
+  try{
+    (Debug(s"Parsing $s"), Some(Integer.parseInt(s)))
+  } catch {
+    case _: NumberFormatException => 
+      (Error(s"$s is not an integer"), None)
+  }
+
+
+def factorial1(n: Int): (Logging, Option[Int]) = 
+  if (n < 0) 
+    (Error(s"factorial($n) = error: negative number"), None)
+  else if (n == 0) 
+    (Debug(s"factorial($n)=1"), Some(1))
+  else {
+    val (logging, maybe_rec_result) = factorial1(n-1)
+    maybe_rec_result match {
+      case None => 
+        (logging, None)
+      case Some(rec_result) => 
+        val result = n * rec_result 
+        val next_logging = Multilog(List(Debug(s"factorial($n)=$result"), logging))
+        (next_logging, Some(result))
+    }
+  }
+
+
+// def factorial2(n: Int): Option[Int] = {
+
+//   def fact_aux(i: Int, result: Int): Int = 
+//     if (i == n) result
+//     else fact_aux(i+1, (i+1) * result)
+
+//   if (n < 0) None
+//   else Some(fact_aux(0, 1))
+
+// }
+
+// def factorial3(n: Int): (Logging, Option[Int]) = {
+  
+//   def fact_aux(i: Int, result: Int): (Logging, Int) = 
+//     if (i == n) 
+//       (Debug(s"factorial($i)=$result"), result)
+//     else 
+//       fact_aux(i + 1, (i + 1) * result)
+
+//   if (n < 0) 
+//     (Error(s"factorial($n) = error: negative number"), None)
+//   else {
+//     val (logging, result) = fact_aux(0, 1)
+//     (logging, Some(result))
+//   }
+
+// }
+
+def evaluator[T](result: => Option[T]): Unit = 
+  result.fold(println("Invalid computation")){
+    result => println(s"Computation result: $result")
+  }
+
+def logger(logging: => Logging): Unit = 
+  logging match {
+    case Debug(msg) => println(msg)
+    case Error(msg) => println(msg)
+    case Multilog(log :: rest_log) => {
+      logger(log)
+      rest_log.foreach { log => logger(log) }
+    }
+    case Multilog(Nil) => ()
+  }
+
+def interpreter[T](result: => (Logging, Option[T])): Unit = {
+  val (logging, evaluation) = result
+  logger(logging)
+  evaluator(evaluation)
+}
+
+def main: String => (Logging, Option[Int]) = ???
+
+interpreter(main(3))
+
+}
 
 
 
