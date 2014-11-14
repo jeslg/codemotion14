@@ -208,5 +208,23 @@ interpreter(main(3))
 }
 
 
+trait ADT{
+
+sealed trait DataType
+case object Case1 extends DataType
+case class Case2(arg1: T1, arg2: T2, …) extends DataType
+
+// pattern matching
+
+val t: DataType
+val v: Int = t match { 
+   case c1@Case1 => …:Int
+   case c2@Case2(a1,a2,…) => …:Int
+}
+
+
+}
+
+
 
 
