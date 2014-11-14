@@ -60,6 +60,8 @@ val scale: Int => (Image => Image)
 
 trait Composition{
 
+def compose[A,B,C](g: B => C, f: A => B): A => C 
+
 trait Function1[-T1, +R] extends AnyRef { 
   def apply(v1: T1): R
 
