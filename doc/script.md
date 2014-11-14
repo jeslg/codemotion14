@@ -3,9 +3,23 @@
 WHAT IS FUNCTIONAL PROGRAMMING?
 ===============================
 
-**FP is programming with functions.** But seriously, not cheating. And that means: writing _pure_ functions, i.e without _side effects_. You look their signatures, and you know almost all about them. Functions as in mathematics (def.), as blackboxes that transform inputs into outputs. The best documentation ever. And sometimes, the signature gives you the only thing the function can do (with polymorphic functions, especially - cf. theorems for free). 
+## FUNCTIONS  
 
-**FP is not ...**. Programming with higher orfer functions (map, filter, reduce, ...), i.e. having functions as first class values, inmutable data, recursion (with tail calls), ... These are common ingredients of FP, but they are not sufficient conditions for a functional programming experience - and some of them are not necessary either. Examples? defining memoize functions with uses vars internally, writing a higher order function with side effects, ... These examples will appear latter.
+**FP is programming with functions.** A functional program *is* a function. A function is a computing device that transforms values into values, and nothing more. This works for any domain. Scala examples: mathematical (fibonacci), parsing (parseInt), image processing, server programming, ...
+
+(**FP is not ...**. Programming with higher orfer functions (map, filter, reduce, ...), i.e. having functions as first class values, inmutable data, recursion (with tail calls), ... These are common ingredients of FP, but they are not sufficient conditions for a functional programming experience - and some of them are not necessary either. Examples? defining memoize functions with uses vars internally, writing a higher order function with side effects, ... These examples will appear latter.)
+
+**Values.** Everything is a value. Including functions!
+
+**Composition.** Composition of functions: andThen, compose. Scala in-depths: implicit classes to enable infix operators. Examples: parsing and then fibonacci (with and without combinators). But we need more: what if it can't be parsed?, what if I want to log events? 
+
+**Side effects.** Example: impure program. Functional programming is programming with functions, but seriously, not cheating. And that means: writing _pure_ functions, i.e without _side effects_. You look their signatures, and you know almost all about them. Functions as in mathematics (def.), as blackboxes that transform inputs into outputs. The best documentation ever. And sometimes, the signature gives you the only thing the function can do (with polymorphic functions, especially - cf. theorems for free). Names of functions don't matter much. But, then, how do we represent effects? How can pure values allow to do something useful?
+
+**Effects.** We represent effects as values, that need to be later interpreted. Pure and impure parts of a functional framework. 
+
+**Algebraic data types.** Cases (sums) and tuples (products). Pattern matching. Examples: Try, Option, Logging, ... Previous parsing + fib combination with Try, Option and Logging. We can no longer apply *function* composition!
+
+**Data type combinators.** First, we can try to pattern match. But this is ugly: we will do it a million of times. Combinators! So, function composition does not work, but in FP programming functions are not the only things that compose: Kleisly functions, pipes, iterateees, ... This should be rather called categorical programming! Examples.
 
 **More on pure functions: equational reasoning**. Pure functions allow _equational reasoning_: reasoning about the behaviour of our programs in terms of substitutions. This is what _referentially transparent expressions_ are all about. "RT is the essence of FP". FP is not a sequence of instructions, it's a RT expression. It's computing with _values_. Functions have to be transparent, in the sense that they do nothing more than what they say. Moment to introduce laws and scalacheck. The substitution model of evaluation. Equational reasoning only works if functions are pure, i.e. don't generate side-effects. This is because, we need to be sure that the function always return the same output when given the same inputs. Otherwise, we can't progress in the substitutions. We'd get stuck. "from this point, we could proceed this way ... or not."
 
