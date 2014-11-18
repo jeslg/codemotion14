@@ -44,6 +44,13 @@ trait DictionaryServices {
       }
     }
 
+  def orun[A](effect: Effect[A]): Option[A] = {
+    interpreter(effect, getState) map { case (a, state) =>
+      setState(state)
+      a
+    }
+  }
+
   def irun[A](effects: Effect[A]): A = {
     (interpreter(effects, getState) map { case (a, state) =>
       setState(state)

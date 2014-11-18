@@ -33,15 +33,39 @@ trait DictionaryController extends Controller
 
   // GET /:word
 
-  def search(word: String): Action[AnyContent] =
-    (Action 
-     andThen UserRefiner 
-     andThen ReadFilter 
-     andThen UserLogging) {
-      irun(getEntry(word)).map(d => Ok(d)).getOrElse {
-        NotFound(s"The word '$word' does not exist")
-      }
+  case class FromEffect[A, B](effect: A => Effect[B])(
+      translator: Request[_] => A,
+      interpreter: Effect[B] => Option[B],
+      result: Option[B] => Result) {
+
+    def build: Request[_] => Result =
+      result compose interpreter compose effect compose translator
+  }
+
+  val searchEffect: String => Effect[Option[String]] = getEntry(_)
+
+  def searchResult(word: String): Option[Option[String]] => Result =
+    _.flatten.map(Ok(_)).getOrElse {
+      NotFound(s"The word '$word' does not exist")
     }
+
+  def search(word: String): Action[AnyContent] = 
+    (Action
+     andThen UserRefiner
+     andThen ReadFilter
+     andThen UserLogging) {
+      FromEffect(searchEffect)(_ => word, orun _, searchResult(word)).build
+    }
+
+  // def search(word: String): Action[AnyContent] =
+  //   (Action 
+  //    andThen UserRefiner 
+  //    andThen ReadFilter 
+  //    andThen UserLogging) {
+  //     irun(getEntry(word)).map(d => Ok(d)).getOrElse {
+  //       NotFound(s"The word '$word' does not exist")
+  //     }
+  //   }
 
   // POST /
 
