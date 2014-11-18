@@ -14,9 +14,41 @@ trait DictionaryServices {
   def setState(state: ApplicationState): DictionaryServices
 
   def run[A](service: Service[A]): A = {
-    val (ret, state) = service(getState)
+    val (a, state) = service(getState)
     setState(state)
-    ret
+    a
+  }
+
+  def interpreter[A](
+      effects: Effect[A], 
+      state: ApplicationState): Option[(A, ApplicationState)] =
+
+    effects match {
+      case GetEntry(word) => {
+	state.words.get(word).map((_, state))
+      }
+      case SetEntry(word, definition) => {
+	Option(((), state.copy(words = state.words + (word -> definition))))
+      }
+      case RemoveEntry(word) => {
+	Option(((), state.copy(words = state.words - word)))
+      }
+      case ResetEntries(nwords) => {
+	Option(((), state.copy(words = nwords)))
+      }
+      case FlatMap(ra, f) => interpreter(ra, state).flatMap { case (a, nst) =>
+	interpreter(f(a), nst)
+      }
+      case MapM(ra, f) => interpreter(ra, state).map { case (a, nst) =>
+	(f(a), nst)
+      }
+    }
+
+  def irun[A](effects: Effect[A]): Option[A] = {
+    interpreter(effects, getState) map { case (a, state) =>
+      setState(state)
+      a
+    }
   }
 }
 

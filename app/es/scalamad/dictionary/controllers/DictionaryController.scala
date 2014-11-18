@@ -31,9 +31,9 @@ trait DictionaryActions extends Controller
 
   // GET /
 
-  def helloDictionary = Action {
-    Ok("Welcome to the CodeMotion14 Dictionary!")
-  }
+  def helloDictionary: Action[AnyContent] = Action {
+      Ok("Welcome to the ScalaMAD Dictionary!")
+    }
 
   // GET /:word
 

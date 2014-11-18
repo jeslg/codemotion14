@@ -14,6 +14,52 @@ GET    /:word		es.scalamad.dictionary.controllers.DictionaryController.search(wo
 GET    /socket/add	es.scalamad.dictionary.controllers.DictionaryController.socketAdd
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # Simulates External Collins Dictionary
 
 GET    /ws/token	es.scalamad.dictionary.controllers.CollinsDictionaryController.wsToken
