@@ -17,13 +17,8 @@ import Effect._
 
 object DictionaryController extends DictionaryController
   with CacheDictionaryServices
-
-trait DictionaryController extends Controller
-  with DictionaryActions
-  with DictionaryWebSockets
   
-trait DictionaryActions extends Controller
-  with CollinsDictionary 
+trait DictionaryController extends Controller
   with DictionaryFunctions
   with DictionaryUtils
   with DictionaryServices
@@ -33,8 +28,8 @@ trait DictionaryActions extends Controller
   // GET /
 
   def helloDictionary: Action[AnyContent] = Action {
-      Ok("Welcome to the ScalaMAD Dictionary!")
-    }
+    Ok("Welcome to the ScalaMAD Dictionary!")
+  }
 
   // GET /:word
 
@@ -42,26 +37,11 @@ trait DictionaryActions extends Controller
     (Action 
      andThen UserRefiner 
      andThen ReadFilter 
-     andThen UserLogging).async { urequest =>
-      irun(getEntry(word)).map(d => Future(Ok(d))).getOrElse {
-        if (isFurtherSearch(urequest)) {
-          wsTokenAndSearch(word).map { odef =>
-            odef.map(Ok(_)).getOrElse {
-              NotFound(s"The word '$word' does not exist")
-            }
-          }
-        } else {
-          Future(NotFound(s"The word '$word' does not exist"))
-        }
+     andThen UserLogging) {
+      irun(getEntry(word)).map(d => Ok(d)).getOrElse {
+        NotFound(s"The word '$word' does not exist")
       }
     }
-
-  val FURTHER_QUERY_NAME = "further"
-
-  def isFurtherSearch[A](request: Request[A]): Boolean =
-    request.queryString.contains(FURTHER_QUERY_NAME) &&
-    request.queryString(FURTHER_QUERY_NAME).size > 0 && 
-    request.queryString(FURTHER_QUERY_NAME).head.toBoolean
 
   // POST /
 
@@ -79,39 +59,6 @@ trait DictionaryActions extends Controller
   }
   
   val jsToWordParser: BodyParser[(String,String)] = parse.json map jsToWord
-}
-
-trait DictionaryWebSockets { this: Controller 
-    with DictionaryServices 
-    with WordServices 
-    with DictionaryUtils =>
-
-  /*
-   * GET /socket/add 
-   * 
-   * This can be tested by using: http://websocket.org/echo.html
-   */
-   
-  def socketAdd = WebSocket.using[String] { request =>
-    val in = asJson ><> asEntry ><> existingFilter &>> toDictionary
-    val out = Enumerator("You're using the Dictionary WebSocket Service")
-    (in, out)
-  }
-
-  def asJson: Enumeratee[String, JsValue] = Enumeratee.map(Json.parse)
-
-  def asEntry = Enumeratee.map(jsToWord)
-
-  def existingFilter = 
-    Enumeratee.filter[(String, String)] { 
-      case (word, _) => ! (run(containsWord(word)))
-    }
-
-  def toDictionary = {
-    Iteratee.foreach[(String, String)] { 
-      case (word, definition) => irun(setEntry(word -> definition))
-    }
-  }
 }
 
 trait DictionaryUtils {
@@ -180,33 +127,4 @@ trait DictionaryFunctions { this: Controller
   object WriteFilter extends PermissionFilter(
     Permission.canWrite, 
     "You are not allowed to write")
-}
-
-trait CollinsDictionary { this: Controller with DictionaryFunctions =>
-
-  def wsToken: Future[String] = {
-    val rel = routes.CollinsDictionaryController.wsToken.url
-    val holder = WS.url(s"http://localhost:9000$rel")
-    val response = holder.get
-    response map (_.body)
-  }
-
-  def wsSearch(word: String, token: String): Future[Option[String]] = {
-    val rel = routes.CollinsDictionaryController.wsSearch(word)
-    val holder = WS.url(s"http://localhost:9000$rel").withBody(token)
-    val response = holder.get
-    response map { wsr =>
-      wsr.status match {
-        case OK => Option(wsr.body)
-        case _ => None
-      }
-    }
-  }
-
-  def wsTokenAndSearch(word: String): Future[Option[String]] = {
-    for {
-      token <- wsToken
-      odef  <- wsSearch(word, token)
-    } yield odef
-  }
 }
