@@ -25,10 +25,10 @@ trait DictionaryServices {
 
     effects match {
       case GetEntry(word) => {
-	state.words.get(word).map((_, state))
+	Option((state.words.get(word), state))
       }
-      case SetEntry(word, definition) => {
-	Option(((), state.copy(words = state.words + (word -> definition))))
+      case SetEntry(entry) => {
+	Option(((), state.copy(words = state.words + entry)))
       }
       case RemoveEntry(word) => {
 	Option(((), state.copy(words = state.words - word)))
@@ -44,11 +44,11 @@ trait DictionaryServices {
       }
     }
 
-  def irun[A](effects: Effect[A]): Option[A] = {
-    interpreter(effects, getState) map { case (a, state) =>
+  def irun[A](effects: Effect[A]): A = {
+    (interpreter(effects, getState) map { case (a, state) =>
       setState(state)
       a
-    }
+    }).get // FIXME: this could be None if the interpreter gets an error
   }
 }
 

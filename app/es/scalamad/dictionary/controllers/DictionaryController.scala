@@ -13,6 +13,7 @@ import play.api.Play.current
 
 import es.scalamad.dictionary.models._
 import es.scalamad.dictionary.services._
+import Effect._
 
 object DictionaryController extends DictionaryController
   with CacheDictionaryServices
@@ -42,7 +43,7 @@ trait DictionaryActions extends Controller
      andThen UserRefiner 
      andThen ReadFilter 
      andThen UserLogging).async { urequest =>
-      run(getWord(word)).map(d => Future(Ok(d))).getOrElse {
+      irun(getEntry(word)).map(d => Future(Ok(d))).getOrElse {
         if (isFurtherSearch(urequest)) {
           wsTokenAndSearch(word).map { odef =>
             odef.map(Ok(_)).getOrElse {
@@ -70,7 +71,7 @@ trait DictionaryActions extends Controller
      andThen WriteFilter 
      andThen UserLogging)(jsToWordParser) { urequest =>
        val entry@(word, _) = urequest.body
-       run(setWord(entry))
+       irun(setEntry(entry))
        val url = routes.DictionaryController.search(word).url
        Created(s"The word '$word' has been added successfully")
          .withHeaders((LOCATION -> url))
@@ -108,7 +109,7 @@ trait DictionaryWebSockets { this: Controller
 
   def toDictionary = {
     Iteratee.foreach[(String, String)] { 
-      case (word, definition) => run(setWord(word, definition))
+      case (word, definition) => irun(setEntry(word -> definition))
     }
   }
 }
