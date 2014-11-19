@@ -1,5 +1,8 @@
 package es.scalamad.dictionary.services
 
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+
 import play.api.cache.Cache
 import play.api.Play.current
 
@@ -9,38 +12,38 @@ trait DictionaryServices {
 
   def interpreter[A](
       effects: Effect[A], 
-      state: ApplicationState): Option[(A, ApplicationState)] =
+      state: ApplicationState): Future[(A, ApplicationState)] =
 
     effects match {
       case GetEntry(word) => {
-	Option((state.words.get(word), state))
+	Future((state.words.get(word), state))
       }
       case SetEntry(entry) => {
-	Option(((), state.copy(words = state.words + entry)))
+	Future(((), state.copy(words = state.words + entry)))
       }
       case RemoveEntry(word) => {
-	Option(((), state.copy(words = state.words - word)))
+	Future(((), state.copy(words = state.words - word)))
       }
       case ResetEntries(nwords) => {
-	Option(((), state.copy(words = nwords)))
+	Future(((), state.copy(words = nwords)))
       }
       case GetUser(nick) => {
-        Option((state.users.get(nick), state))
+        Future((state.users.get(nick), state))
       }
       case SetUser(user) => {
-        Option(((), state.copy(users = state.users + (user.nick -> user))))
+        Future(((), state.copy(users = state.users + (user.nick -> user))))
       }
       case RemoveUser(nick) => {
-        Option(((), state.copy(users = state.users - nick)))
+        Future(((), state.copy(users = state.users - nick)))
       }
       case ResetUsers(nusers) => {
-        Option((), state.copy(users = nusers))
+        Future((), state.copy(users = nusers))
       }
       case CanRead(user) => {
-        Option((user.permission.fold(false)(_ => true), state))
+        Future((user.permission.fold(false)(_ => true), state))
       }
       case CanWrite(user) => {
-        Option((user.permission.fold(false)(_ == READ_WRITE), state))
+        Future((user.permission.fold(false)(_ == READ_WRITE), state))
       }
       case FlatMap(ra, f) => interpreter(ra, state).flatMap { case (a, nst) =>
 	interpreter(f(a), nst)
@@ -50,12 +53,12 @@ trait DictionaryServices {
       }
     }
 
-  def impure[A](effect: Effect[A]): Option[A]
+  def impure[A](effect: Effect[A]): Future[A]
 }
 
 trait CacheDictionaryServices extends DictionaryServices {
 
-  def impure[A](effect: Effect[A]): Option[A] = {
+  def impure[A](effect: Effect[A]): Future[A] = {
     interpreter(effect, getState) map { case (a, state) =>
       setState(state)
       a

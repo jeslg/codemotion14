@@ -36,9 +36,10 @@ trait DictionaryController extends Controller
       .withTranslator(_ => word)
       .withInterpreter(impure _)
       .withResult {
-        _.flatten.map(Ok(_)).getOrElse {
-          NotFound(s"The word '$word' does not exist")
-        }
+        // _.flatten.map(Ok(_)).getOrElse {
+        //   NotFound(s"The word '$word' does not exist")
+        // }
+        _ => Future(Ok("???"))
       }.toAction
 
   // POST /
@@ -48,9 +49,11 @@ trait DictionaryController extends Controller
       .withTranslator(_.body)
       .withInterpreter(impure _)
       .withResult {
+        // FIXME: This returns a Created, even when interpreter fails
         // val url = routes.DictionaryController.search(word).url
-        _ => Created("The word has been added successfully")
+        // _ => Created("The word has been added successfully")
           // .withHeaders((LOCATION -> url))
+        _ => Future(Ok("???"))
       }.toAction
   
   val jsToWordParser: BodyParser[(String,String)] = parse.json map jsToWord
@@ -74,23 +77,23 @@ trait DictionaryUtils { this: DictionaryController =>
     service: In => Effect[Out],
     parser: BodyParser[Body],
     translator: Option[Request[Body] => In] = None,
-    interpreter: Option[Effect[Out] => Option[Out]] = None,
-    result: Option[Option[Out] => Result] = None) {
+    interpreter: Option[Effect[Out] => Future[Out]] = None,
+    result: Option[Future[Out] => Future[Result]] = None) {
 
     def withTranslator(translator: Request[Body] => In) = 
       new ActionBuilder(
         service, parser, Option(translator), interpreter, result)
 
-    def withInterpreter(interpreter: Effect[Out] => Option[Out]) =
+    def withInterpreter(interpreter: Effect[Out] => Future[Out]) =
       new ActionBuilder(
         service, parser, translator, Option(interpreter), result)
 
-    def withResult(result: Option[Out] => Result) =
+    def withResult(result: Future[Out] => Future[Result]) =
       new ActionBuilder(
         service, parser, translator, interpreter, Option(result))
 
     def toAction: Action[Body] = {
-      Action(parser)(translator.get
+      Action.async(parser)(translator.get
         andThen service
         andThen (interpreter.get)
         andThen (result.get))
