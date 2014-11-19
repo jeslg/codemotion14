@@ -11,10 +11,10 @@ import es.scalamad.dictionary.models._
 trait DictionaryServices {
 
   def interpreter[A](
-      effects: Effect[A], 
+      effect: Effect[A], 
       state: ApplicationState): Future[(A, ApplicationState)] =
 
-    effects match {
+    effect match {
       case GetEntry(word) => {
 	Future((state.words.get(word), state))
       }

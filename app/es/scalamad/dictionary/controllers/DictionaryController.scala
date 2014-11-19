@@ -36,9 +36,6 @@ trait DictionaryController extends Controller
       .withTranslator(_ => word)
       .withInterpreter(impure _)
       .withResult {
-        // _.flatten.map(Ok(_)).getOrElse {
-        //   NotFound(s"The word '$word' does not exist")
-        // }
         _.map(_.fold(NotFound("Could not find the requested word"))(Ok(_)))
       }.toAction
 
@@ -50,6 +47,7 @@ trait DictionaryController extends Controller
       .withInterpreter(impure _)
       .withResult {
         _.map(_ => Created("The word has been added successfully"))
+          // FIXME: where can I get this location?
           // .withHeaders((LOCATION -> url))
       }.toAction
   
@@ -90,10 +88,11 @@ trait DictionaryUtils { this: DictionaryController =>
         service, parser, translator, interpreter, Option(result))
 
     def toAction: Action[Body] = {
-      Action.async(parser)(translator.get
-        andThen service
-        andThen (interpreter.get)
-        andThen (result.get))
+      Action.async(parser)(
+        translator.get
+          andThen service
+          andThen (interpreter.get)
+          andThen (result.get))
     }
   }
 
