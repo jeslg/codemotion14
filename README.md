@@ -3,7 +3,7 @@ codemotion14
 
 Código que será utilizado en el workshop *Programación funcional con Scala y aplicaciones para la Web* impartido en [CodeMotion 2014](http://2014.codemotion.es/es/).
 
-### Instrucciones
+### Instrucciones para descargar el software necesario
 
 1. Clonar este repositorio `git clone http://github.com/jeslg/codemotion14.git`
 2. Ejecutar `codemotion14/activator` (`codemotion14/activator.bat` para Windows)
