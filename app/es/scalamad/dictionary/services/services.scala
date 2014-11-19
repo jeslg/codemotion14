@@ -7,18 +7,6 @@ import es.scalamad.dictionary.models._
 
 trait DictionaryServices {
 
-  type Service[A] = ApplicationState => (A, ApplicationState)
-  
-  def getState: ApplicationState
-
-  def setState(state: ApplicationState): DictionaryServices
-
-  def run[A](service: Service[A]): A = {
-    val (a, state) = service(getState)
-    setState(state)
-    a
-  }
-
   def interpreter[A](
       effects: Effect[A], 
       state: ApplicationState): Option[(A, ApplicationState)] =
@@ -62,22 +50,23 @@ trait DictionaryServices {
       }
     }
 
-  def orun[A](effect: Effect[A]): Option[A] = {
+  def impure[A](effect: Effect[A]): Option[A]
+}
+
+trait CacheDictionaryServices extends DictionaryServices {
+
+  def impure[A](effect: Effect[A]): Option[A] = {
     interpreter(effect, getState) map { case (a, state) =>
       setState(state)
       a
     }
   }
 
-  def irun[A](effects: Effect[A]): A = {
-    (interpreter(effects, getState) map { case (a, state) =>
-      setState(state)
-      a
-    }).get // FIXME: this could be None if the interpreter gets an error
-  }
-}
+  def getState: ApplicationState = 
+    Cache.getOrElse[ApplicationState](STATE_KEY)(dfState)
 
-trait CacheDictionaryServices extends DictionaryServices {
+  def setState(state: ApplicationState): Unit =
+    Cache.set(STATE_KEY, state)
 
   private val STATE_KEY = "state"
 
@@ -89,12 +78,4 @@ trait CacheDictionaryServices extends DictionaryServices {
     Map(
       "hello" -> "greeting",
       "apple" -> "fruit"))
-
-  def getState: ApplicationState = 
-    Cache.getOrElse[ApplicationState](STATE_KEY)(dfState)
-
-  def setState(state: ApplicationState) = {
-    Cache.set(STATE_KEY, state)
-    this
-  }
 }

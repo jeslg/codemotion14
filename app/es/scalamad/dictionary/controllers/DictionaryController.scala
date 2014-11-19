@@ -34,7 +34,7 @@ trait DictionaryController extends Controller
   def search(word: String): Action[AnyContent] =
     ActionBuilder(getEntry, parse.anyContent)
       .withTranslator(_ => word)
-      .withInterpreter(orun _)
+      .withInterpreter(impure _)
       .withResult {
         _.flatten.map(Ok(_)).getOrElse {
           NotFound(s"The word '$word' does not exist")
@@ -46,7 +46,7 @@ trait DictionaryController extends Controller
   def add: Action[(String, String)] =
     ActionBuilder(setEntry, jsToWordParser)
       .withTranslator(_.body)
-      .withInterpreter(orun _)
+      .withInterpreter(impure _)
       .withResult {
         // val url = routes.DictionaryController.search(word).url
         _ => Created("The word has been added successfully")
