@@ -9,7 +9,7 @@ Código que será utilizado en el workshop *Programación funcional con Scala y 
 2. Ejecutar `codemotion14/activator` (`codemotion14/activator.bat` para Windows)
 3. Entraremos en una consola, donde debemos ejecutar `test`. (Con este paso se pretende que se descarguen todas las dependencias del proyecto, ya que no se podrá descargar ninguna librería durante el workshop)
 
-**(*) MUY IMPORTANTE: Todavía estamos realizando cambios en el proyecto. No te olvides de actualizar el repositorio el viernes por la noche. ¡Muchas gracias!**
+**(*) MUY IMPORTANTE: Todavía estamos realizando cambios en el proyecto. No te olvides de actualizar el repositorio el viernes por la noche (mediante `git pull`). ¡Muchas gracias!**
 
 ### Descripción de la charla
 
