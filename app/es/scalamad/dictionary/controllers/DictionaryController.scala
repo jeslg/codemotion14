@@ -13,7 +13,6 @@ import play.api.Play.current
 
 import es.scalamad.dictionary.models._
 import es.scalamad.dictionary.services._
-import Effect._
 
 object DictionaryController extends DictionaryController
   with CacheDictionaryServices
@@ -117,7 +116,7 @@ trait DictionaryFunctions { this: Controller
       Future {
         request.headers
           .get(USER_HEADER_NAME)
-          .map(nick => run(getUser(nick)))
+          .map(nick => irun(getUser(nick)))
           .flatten
           .map(new UserRequest(_, request))
           .toRight(Unauthorized(s"Invalid '$USER_HEADER_NAME' header"))

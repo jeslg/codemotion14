@@ -4,19 +4,13 @@ import es.scalamad.dictionary.models._
 
 trait WordServices extends DictionaryServices {
 
-  def containsWord(word: String): Service[Boolean] = { state =>
-    (state.words.contains(word), state)
-  }
+  val getEntry: String => Effect[Option[String]] = GetEntry(_)
 
-  // def getWord(word: String): Service[Option[String]] = { state =>
-  //   (state.words.get(word), state)
-  // }
+  val setEntry: ((String, String)) => Effect[Unit] = SetEntry(_)
 
-  // def setWord(entry: (String, String)): Service[Unit] = { state =>
-  //   ((), state.copy(words = state.words + entry))
-  // }
+  val removeEntry: String => Effect[Unit] = RemoveEntry(_)
 
-  // def resetWords(entries: (String, String)*): Service[Unit] = { state =>
-  //   ((), state.copy(words = entries.toMap))
-  // }
+  val resetEntries: Map[String, String] => Effect[Unit] = ResetEntries(_)
+
+  val containsEntry: String => Effect[Boolean] = getEntry(_).map(_.isDefined)
 }
