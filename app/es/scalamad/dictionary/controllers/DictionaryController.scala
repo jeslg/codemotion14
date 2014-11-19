@@ -39,7 +39,7 @@ trait DictionaryController extends Controller
         // _.flatten.map(Ok(_)).getOrElse {
         //   NotFound(s"The word '$word' does not exist")
         // }
-        _ => Future(Ok("???"))
+        _.map(_.fold(NotFound("Could not find the requested word"))(Ok(_)))
       }.toAction
 
   // POST /
@@ -49,11 +49,8 @@ trait DictionaryController extends Controller
       .withTranslator(_.body)
       .withInterpreter(impure _)
       .withResult {
-        // FIXME: This returns a Created, even when interpreter fails
-        // val url = routes.DictionaryController.search(word).url
-        // _ => Created("The word has been added successfully")
+        _.map(_ => Created("The word has been added successfully"))
           // .withHeaders((LOCATION -> url))
-        _ => Future(Ok("???"))
       }.toAction
   
   val jsToWordParser: BodyParser[(String,String)] = parse.json map jsToWord
