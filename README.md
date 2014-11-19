@@ -7,7 +7,8 @@ Código que será utilizado en el workshop *Programación funcional con Scala y 
 
 1. Clonar este repositorio `git clone http://github.com/jeslg/codemotion14.git`
 2. Ejecutar `codemotion14/activator` (`codemotion14/activator.bat` para Windows)
-3. Entraremos en una consola, donde debemos ejecutar `test`. (Con este paso se pretende que se descarguen todas las dependencias del proyecto, ya que no se podrá descargar ninguna librería durante el workshop)
+3. Entraremos en una consola, donde debemos ejecutar `test`. Este proceso puede llevarnos algo de tiempo la primera vez que se ejecuta, ya que requiere descargar todas las dependencias del proyecto. (Desde la organización nos comunican que no se podrá descargar ningún software durante el workshop, por lo que realizar este paso previamente será imprescindible)
+4. Si todo ha ido bien, obtendremos varias trazas de color verde, indicando que los tests han ejecutado correctamente.
 
 **(*) MUY IMPORTANTE: Todavía estamos realizando cambios en el proyecto. No te olvides de actualizar el repositorio el viernes por la noche (mediante `git pull`). ¡Muchas gracias!**
 
