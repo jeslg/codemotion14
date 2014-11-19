@@ -12,7 +12,7 @@ Código que será utilizado en el workshop *Programación funcional con Scala y 
 5. También será necesario **cualquier editor de texto**, preferiblemente con resaltado de sintaxis para Scala (EMACS, Sublime, vim, gedit...)
 6. Finalmente, para probar el código que iremos desplegando, **requeriremos un cliente REST**. Durante la charla, utilizaremos *RESTClient* en Firefox.
 
-**(*) MUY IMPORTANTE: Todavía estamos realizando cambios en el proyecto. No te olvides de actualizar el repositorio el viernes por la noche (mediante `git pull`). ¡Muchas gracias!**
+**(*) MUY IMPORTANTE: Todavía estamos aplicando los últimos cambios al proyecto. No te olvides de actualizar el repositorio el viernes por la noche (mediante `git pull`) ¡Muchas gracias!**
 
 ### Descripción de la charla
 
