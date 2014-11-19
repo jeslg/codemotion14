@@ -38,3 +38,9 @@ case class SetUser(user: User) extends Effect[Unit]
 case class RemoveUser(nick: String) extends Effect[Unit]
 
 case class ResetUsers(state: Map[String, User]) extends Effect[Unit]
+
+// permission
+
+case class CanRead(user: User) extends Effect[Boolean]
+
+case class CanWrite(user: User) extends Effect[Boolean]

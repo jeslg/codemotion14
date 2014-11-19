@@ -18,7 +18,6 @@ object DictionaryController extends DictionaryController
   with CacheDictionaryServices
   
 trait DictionaryController extends Controller
-  with DictionaryFunctions
   with DictionaryUtils
   with DictionaryServices
   with UserServices 
@@ -32,59 +31,32 @@ trait DictionaryController extends Controller
 
   // GET /:word
 
-  case class FromEffect[A, B](effect: A => Effect[B])(
-      translator: Request[_] => A,
-      interpreter: Effect[B] => Option[B],
-      result: Option[B] => Result) {
-
-    def build: Request[_] => Result =
-      result compose interpreter compose effect compose translator
-  }
-
-  val searchEffect: String => Effect[Option[String]] = getEntry(_)
-
-  def searchResult(word: String): Option[Option[String]] => Result =
-    _.flatten.map(Ok(_)).getOrElse {
-      NotFound(s"The word '$word' does not exist")
-    }
-
-  def search(word: String): Action[AnyContent] = 
-    (Action
-     andThen UserRefiner
-     andThen ReadFilter
-     andThen UserLogging) {
-      FromEffect(searchEffect)(_ => word, orun _, searchResult(word)).build
-    }
-
-  // def search(word: String): Action[AnyContent] =
-  //   (Action 
-  //    andThen UserRefiner 
-  //    andThen ReadFilter 
-  //    andThen UserLogging) {
-  //     irun(getEntry(word)).map(d => Ok(d)).getOrElse {
-  //       NotFound(s"The word '$word' does not exist")
-  //     }
-  //   }
+  def search(word: String): Action[AnyContent] =
+    ActionBuilder(getEntry, parse.anyContent)
+      .withTranslator(_ => word)
+      .withInterpreter(orun _)
+      .withResult {
+        _.flatten.map(Ok(_)).getOrElse {
+          NotFound(s"The word '$word' does not exist")
+        }
+      }.toAction
 
   // POST /
 
-  def add: Action[(String,String)] = {
-    (Action 
-     andThen UserRefiner 
-     andThen WriteFilter 
-     andThen UserLogging)(jsToWordParser) { urequest =>
-       val entry@(word, _) = urequest.body
-       irun(setEntry(entry))
-       val url = routes.DictionaryController.search(word).url
-       Created(s"The word '$word' has been added successfully")
-         .withHeaders((LOCATION -> url))
-    }
-  }
+  def add: Action[(String, String)] =
+    ActionBuilder(setEntry, jsToWordParser)
+      .withTranslator(_.body)
+      .withInterpreter(orun _)
+      .withResult {
+        // val url = routes.DictionaryController.search(word).url
+        _ => Created("The word has been added successfully")
+          // .withHeaders((LOCATION -> url))
+      }.toAction
   
   val jsToWordParser: BodyParser[(String,String)] = parse.json map jsToWord
 }
 
-trait DictionaryUtils {
+trait DictionaryUtils { this: DictionaryController =>
 
   implicit class OptionExtensions[T](option: Option[T]) {
 
@@ -97,57 +69,39 @@ trait DictionaryUtils {
 
   def jsToWord(jsv: JsValue): (String, String) =
     (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
-}
 
-trait DictionaryFunctions { this: Controller 
-    with DictionaryUtils 
-    with DictionaryServices 
-    with UserServices =>
+  class ActionBuilder[In, Out, Body](
+    service: In => Effect[Out],
+    parser: BodyParser[Body],
+    translator: Option[Request[Body] => In] = None,
+    interpreter: Option[Effect[Out] => Option[Out]] = None,
+    result: Option[Option[Out] => Result] = None) {
 
-  val USER_HEADER_NAME = "user"
+    def withTranslator(translator: Request[Body] => In) = 
+      new ActionBuilder(
+        service, parser, Option(translator), interpreter, result)
 
-  class UserRequest[A](
-    val user: User, 
-    request: Request[A]) extends WrappedRequest[A](request)
+    def withInterpreter(interpreter: Effect[Out] => Option[Out]) =
+      new ActionBuilder(
+        service, parser, translator, Option(interpreter), result)
 
-  object UserRefiner extends ActionRefiner[Request, UserRequest] {
+    def withResult(result: Option[Out] => Result) =
+      new ActionBuilder(
+        service, parser, translator, interpreter, Option(result))
 
-    def refine[A](request: Request[A]): Future[Either[Result,UserRequest[A]]] =
-      Future {
-        request.headers
-          .get(USER_HEADER_NAME)
-          .map(nick => irun(getUser(nick)))
-          .flatten
-          .map(new UserRequest(_, request))
-          .toRight(Unauthorized(s"Invalid '$USER_HEADER_NAME' header"))
-      }
+    def toAction: Action[Body] = {
+      Action(parser)(translator.get
+        andThen service
+        andThen (interpreter.get)
+        andThen (result.get))
+    }
   }
 
-  object UserLogging extends ActionTransformer[UserRequest, UserRequest] {
+  object ActionBuilder {
 
-    def transform[A](urequest: UserRequest[A]): Future[UserRequest[A]] = 
-      Future {
-        Logger.info(s"@${urequest.user.nick} requests ${urequest.toString}")
-        urequest
-      }
+    def apply[In, Out, Body](
+        service: In => Effect[Out], 
+        parser: BodyParser[Body]) =
+      new ActionBuilder[In, Out, Body](service, parser)
   }
-
-  class PermissionFilter(
-      permitted: User => Boolean, 
-      err: String) extends ActionFilter[UserRequest] {
-
-    def filter[A](urequest: UserRequest[A]): Future[Option[Result]] = 
-      Future {
-        Option(Forbidden(err))
-          .unless(permitted(urequest.user))
-      }
-  }
-
-  object ReadFilter extends PermissionFilter(
-    Permission.canRead,
-    "You are not allowed to read")
-
-  object WriteFilter extends PermissionFilter(
-    Permission.canWrite, 
-    "You are not allowed to write")
 }
