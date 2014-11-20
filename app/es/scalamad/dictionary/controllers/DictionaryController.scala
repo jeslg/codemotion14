@@ -10,7 +10,7 @@ import play.api.Play.current
 
 import es.scalamad.dictionary.models._
 import es.scalamad.dictionary.services._
-import Effect._
+import Repo._
 
 object DictionaryController extends DictionaryController
   with CacheDictionaryServices
@@ -30,7 +30,7 @@ trait DictionaryController extends Controller
 
   // GET /:word
 
-  val authorizedSearch: Tuple2[String, String] => Effect[Option[String]] = 
+  val authorizedSearch: Tuple2[String, String] => Repo[Option[String]] = 
     if_K[String, String, String](
       optComposeK(optTransformer(canRead), getUser),
       getEntry,
@@ -75,17 +75,17 @@ trait DictionaryUtils { this: DictionaryController =>
     (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
 
   class ActionBuilder[In, Out, Body](
-    service: In => Effect[Out],
+    service: In => Repo[Out],
     parser: BodyParser[Body],
     translator: Option[Request[Body] => In] = None,
-    interpreter: Option[Effect[Out] => Future[Out]] = None,
+    interpreter: Option[Repo[Out] => Future[Out]] = None,
     result: Option[Future[Out] => Future[Result]] = None) {
 
     def withTranslator(translator: Request[Body] => In) = 
       new ActionBuilder(
         service, parser, Option(translator), interpreter, result)
 
-    def withInterpreter(interpreter: Effect[Out] => Future[Out]) =
+    def withInterpreter(interpreter: Repo[Out] => Future[Out]) =
       new ActionBuilder(
         service, parser, translator, Option(interpreter), result)
 
@@ -107,7 +107,7 @@ trait DictionaryUtils { this: DictionaryController =>
   object ActionBuilder {
 
     def apply[In, Out, Body](
-        service: In => Effect[Out], 
+        service: In => Repo[Out], 
         parser: BodyParser[Body]) =
       new ActionBuilder[In, Out, Body](service, parser)
   }

@@ -11,7 +11,7 @@ import es.scalamad.dictionary.models._
 trait DictionaryServices {
 
   def pure[A](
-      effect: Effect[A], 
+      effect: Repo[A], 
       state: ApplicationState): Future[(A, ApplicationState)] =
 
     effect match {
@@ -50,12 +50,12 @@ trait DictionaryServices {
       case Return(value) => Future((value, state))
     }
 
-  def impure[A](effect: Effect[A]): Future[A]
+  def impure[A](effect: Repo[A]): Future[A]
 }
 
 trait CacheDictionaryServices extends DictionaryServices {
 
-  def impure[A](effect: Effect[A]): Future[A] = {
+  def impure[A](effect: Repo[A]): Future[A] = {
     val now = Cache.getOrElse[ApplicationState](STATE_KEY)(dfState)
     pure(effect, now) map { case (a, next) =>
       Cache.set(STATE_KEY, next)

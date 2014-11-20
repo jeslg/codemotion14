@@ -2,11 +2,11 @@ package es.scalamad.dictionary.services
 
 import es.scalamad.dictionary.models._
 
-sealed trait Effect[A] {
+sealed trait Repo[A] {
 
   def map[B](f: A => B) = flatMap[B](a => Return(f(a)))
 
-  def flatMap[B](f: A => Effect[B]): Effect[B] = this match {
+  def flatMap[B](f: A => Repo[B]): Repo[B] = this match {
     case GetEntry(word, next) => GetEntry(word, next(_) flatMap f)
     case SetEntry(entry, next) => SetEntry(entry, next flatMap f)
     case RemoveEntry(word, next) => RemoveEntry(word, next flatMap f)
@@ -21,25 +21,25 @@ sealed trait Effect[A] {
   }
 }
 
-object Effect {
+object Repo {
 
   def composeK[A, B, C](
-    g: B => Effect[C],
-    f: A => Effect[B]): A => Effect[C] = f(_) flatMap g
+    g: B => Repo[C],
+    f: A => Repo[B]): A => Repo[C] = f(_) flatMap g
 
   def optComposeK[A, B, C](
-      g: B => Effect[Option[C]],
-      f: A => Effect[Option[B]]): A => Effect[Option[C]] =
+      g: B => Repo[Option[C]],
+      f: A => Repo[Option[B]]): A => Repo[Option[C]] =
     f andThen (_.flatMap(_.map(g(_)).getOrElse(Return(None))))
 
-  def optTransformer[A, B](f: A => Effect[B]): A => Effect[Option[B]] = {
+  def optTransformer[A, B](f: A => Repo[B]): A => Repo[Option[B]] = {
     f andThen (_.map(Option.apply))
   }
 
   def if_K[A, B, C](
-      cond: A => Effect[Option[Boolean]],
-      then_K: B => Effect[Option[C]],
-      else_K: B => Effect[Option[C]]): Tuple2[A, B] => Effect[Option[C]] = {
+      cond: A => Repo[Option[Boolean]],
+      then_K: B => Repo[Option[C]],
+      else_K: B => Repo[Option[C]]): Tuple2[A, B] => Repo[Option[C]] = {
     case (a, b) => {
       cond(a).flatMap { ob =>
         ob.map(if (_) then_K(b) else else_K(b)).getOrElse(Return(None))
@@ -48,40 +48,40 @@ object Effect {
   }
 }
 
-case class Return[A](value: A) extends Effect[A]
+case class Return[A](value: A) extends Repo[A]
 
 // words
 
-case class GetEntry[A](word: String, next: Option[String] => Effect[A]) 
-    extends Effect[A]
+case class GetEntry[A](word: String, next: Option[String] => Repo[A]) 
+    extends Repo[A]
 
-case class SetEntry[A](entry: (String, String), next: Effect[A]) 
-    extends Effect[A]
+case class SetEntry[A](entry: (String, String), next: Repo[A]) 
+    extends Repo[A]
 
-case class RemoveEntry[A](word: String, next: Effect[A]) 
-    extends Effect[A]
+case class RemoveEntry[A](word: String, next: Repo[A]) 
+    extends Repo[A]
 
-case class ResetEntries[A](state: Map[String, String], next: Effect[A]) 
-    extends Effect[A]
+case class ResetEntries[A](state: Map[String, String], next: Repo[A]) 
+    extends Repo[A]
 
 // users
 
-case class GetUser[A](nick: String, next: Option[User] => Effect[A]) 
-    extends Effect[A]
+case class GetUser[A](nick: String, next: Option[User] => Repo[A]) 
+    extends Repo[A]
 
-case class SetUser[A](user: User, next: Effect[A]) 
-    extends Effect[A]
+case class SetUser[A](user: User, next: Repo[A]) 
+    extends Repo[A]
 
-case class RemoveUser[A](nick: String, next: Effect[A]) 
-    extends Effect[A]
+case class RemoveUser[A](nick: String, next: Repo[A]) 
+    extends Repo[A]
 
-case class ResetUsers[A](state: Map[String, User], next: Effect[A]) 
-    extends Effect[A]
+case class ResetUsers[A](state: Map[String, User], next: Repo[A]) 
+    extends Repo[A]
 
 // permission
 
-case class CanRead[A](user: User, next: Boolean => Effect[A]) 
-    extends Effect[A]
+case class CanRead[A](user: User, next: Boolean => Repo[A]) 
+    extends Repo[A]
 
-case class CanWrite[A](user: User, next: Boolean => Effect[A]) 
-    extends Effect[A]
+case class CanWrite[A](user: User, next: Boolean => Repo[A]) 
+    extends Repo[A]

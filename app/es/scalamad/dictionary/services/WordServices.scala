@@ -4,15 +4,15 @@ import es.scalamad.dictionary.models._
 
 trait WordServices extends DictionaryServices {
 
-  val getEntry: String => Effect[Option[String]] = 
+  val getEntry: String => Repo[Option[String]] = 
     GetEntry(_, Return(_))
 
-  val setEntry: ((String, String)) => Effect[Unit] = 
+  val setEntry: ((String, String)) => Repo[Unit] = 
     SetEntry(_, Return(()))
 
-  val removeEntry: String => Effect[Unit] = 
+  val removeEntry: String => Repo[Unit] = 
     RemoveEntry(_, Return(()))
 
-  val resetEntries: Map[String, String] => Effect[Unit] = 
+  val resetEntries: Map[String, String] => Repo[Unit] = 
     ResetEntries(_, Return(()))
 }

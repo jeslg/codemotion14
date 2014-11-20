@@ -22,7 +22,7 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
 
   def FakeDictionaryController(state: ApplicationState): DictionaryController = 
     new DictionaryController {
-      override def impure[A](effect: Effect[A]): Future[A] = ???
+      override def impure[A](effect: Repo[A]): Future[A] = ???
     }
 
   val dfState = ApplicationState(
