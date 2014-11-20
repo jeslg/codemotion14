@@ -13,12 +13,13 @@ import es.scalamad.dictionary.services._
 
 object DictionaryController extends DictionaryController
   with CacheDictionaryServices
-  
+
 trait DictionaryController extends Controller
   with DictionaryUtils
   with DictionaryServices
   with UserServices 
-  with WordServices {
+  with WordServices
+  with PermissionServices {
 
   // GET /
 

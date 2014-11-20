@@ -15,42 +15,38 @@ trait DictionaryServices {
       state: ApplicationState): Future[(A, ApplicationState)] =
 
     effect match {
-      case GetEntry(word) => {
-	Future((state.words.get(word), state))
+      case GetEntry(word, next) => {
+        interpreter(next(state.words.get(word)), state)
       }
-      case SetEntry(entry) => {
-	Future(((), state.copy(words = state.words + entry)))
+      case SetEntry(entry, next) => {
+        interpreter(next, state.copy(words = state.words + entry))
       }
-      case RemoveEntry(word) => {
-	Future(((), state.copy(words = state.words - word)))
+      case RemoveEntry(word, next) => {
+        interpreter(next, state.copy(words = state.words - word))
       }
-      case ResetEntries(nwords) => {
-	Future(((), state.copy(words = nwords)))
+      case ResetEntries(nwords, next) => {
+        interpreter(next, state.copy(words = nwords))
       }
-      case GetUser(nick) => {
-        Future((state.users.get(nick), state))
+      case GetUser(nick, next) => {
+        interpreter(next(state.users.get(nick)), state)
       }
-      case SetUser(user) => {
-        Future(((), state.copy(users = state.users + (user.nick -> user))))
+      case SetUser(user, next) => {
+        val nuser = user.nick -> user
+        interpreter(next, state.copy(users = state.users + nuser))
       }
-      case RemoveUser(nick) => {
-        Future(((), state.copy(users = state.users - nick)))
+      case RemoveUser(nick, next) => {
+        interpreter(next, state.copy(users = state.users - nick))
       }
-      case ResetUsers(nusers) => {
-        Future((), state.copy(users = nusers))
+      case ResetUsers(nusers, next) => {
+        interpreter(next, state.copy(users = nusers))
       }
-      case CanRead(user) => {
-        Future((user.permission.fold(false)(_ => true), state))
+      case CanRead(user, next) => {
+        interpreter(next(user.permission.fold(false)(_ => true)), state)
       }
-      case CanWrite(user) => {
-        Future((user.permission.fold(false)(_ == READ_WRITE), state))
+      case CanWrite(user, next) => {
+        interpreter(next(user.permission.fold(false)(_ == READ_WRITE)), state)
       }
-      case FlatMap(ra, f) => interpreter(ra, state).flatMap { case (a, nst) =>
-	interpreter(f(a), nst)
-      }
-      case MapM(ra, f) => interpreter(ra, state).map { case (a, nst) =>
-	(f(a), nst)
-      }
+      case Return(value) => Future((value, state))
     }
 
   def impure[A](effect: Effect[A]): Future[A]

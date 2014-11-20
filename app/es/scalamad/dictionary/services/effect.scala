@@ -4,50 +4,56 @@ import es.scalamad.dictionary.models._
 
 sealed trait Effect[A] {
 
-  def map[B](f: A => B): Effect[B] = MapM(this, f)
+  // def map[B](f: A => B): Effect[B] = ???
 
-  def flatMap[B](f: A => Effect[B]): Effect[B] = FlatMap(this, f)
+  // def flatMap[B](f: A => Effect[B]): Effect[B] = this match {
+  //   case GetEntry(word, next) => { 
+  //     GetEntry(word, (x: String) => next(x) flatMap g)
+  //   }
+  // }
 }
 
 object Effect {
 
-  def composeK[A, B, C](
-    f: B => Effect[C],
-    g: A => Effect[B]): A => Effect[C] = g(_) flatMap f
+  // def composeK[A, B, C](
+  //   g: B => Effect[C],
+  //   f: A => Effect[B]): A => Effect[C] = f(_) flatMap g
 }
 
-
-/* Combinators */
-
-case class FlatMap[A, B](ra: Effect[A], f: A => Effect[B]) extends Effect[B]
-
-case class MapM[A, B](ra: Effect[A], f: A => B) extends Effect[B]
-
-
-/* Atomic Effects */
+case class Return[A](value: A) extends Effect[A]
 
 // words
 
-case class GetEntry(word: String) extends Effect[Option[String]]
+case class GetEntry[A](word: String, next: Option[String] => Effect[A]) 
+    extends Effect[A]
 
-case class SetEntry(entry: (String, String)) extends Effect[Unit]
+case class SetEntry[A](entry: (String, String), next: Effect[A]) 
+    extends Effect[A]
 
-case class RemoveEntry(word: String) extends Effect[Unit]
+case class RemoveEntry[A](word: String, next: Effect[A]) 
+    extends Effect[A]
 
-case class ResetEntries(state: Map[String, String]) extends Effect[Unit]
+case class ResetEntries[A](state: Map[String, String], next: Effect[A]) 
+    extends Effect[A]
 
 // users
 
-case class GetUser(nick: String) extends Effect[Option[User]]
+case class GetUser[A](nick: String, next: Option[User] => Effect[A]) 
+    extends Effect[A]
 
-case class SetUser(user: User) extends Effect[Unit]
+case class SetUser[A](user: User, next: Effect[A]) 
+    extends Effect[A]
 
-case class RemoveUser(nick: String) extends Effect[Unit]
+case class RemoveUser[A](nick: String, next: Effect[A]) 
+    extends Effect[A]
 
-case class ResetUsers(state: Map[String, User]) extends Effect[Unit]
+case class ResetUsers[A](state: Map[String, User], next: Effect[A]) 
+    extends Effect[A]
 
 // permission
 
-case class CanRead(user: User) extends Effect[Boolean]
+case class CanRead[A](user: User, next: Boolean => Effect[A]) 
+    extends Effect[A]
 
-case class CanWrite(user: User) extends Effect[Boolean]
+case class CanWrite[A](user: User, next: Boolean => Effect[A]) 
+    extends Effect[A]
