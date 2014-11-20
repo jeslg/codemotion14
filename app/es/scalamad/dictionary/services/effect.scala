@@ -4,6 +4,8 @@ import es.scalamad.dictionary.models._
 
 sealed trait Effect[A] {
 
+  def map[B](f: A => B) = flatMap[B](a => Return(f(a)))
+
   def flatMap[B](f: A => Effect[B]): Effect[B] = this match {
     case GetEntry(word, next) => GetEntry(word, next(_) flatMap f)
     case SetEntry(entry, next) => SetEntry(entry, next flatMap f)
