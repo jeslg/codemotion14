@@ -1,19 +1,15 @@
 package es.scalamad.dictionary.controllers
 
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
 
 import play.api._
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
-import play.api.libs.iteratee._
 import play.api.libs.json._
-import play.api.libs.ws._
 import play.api.mvc._
 import play.api.Play.current
 
 import es.scalamad.dictionary.models._
 import es.scalamad.dictionary.services._
-import Effect.composeK
 
 object DictionaryController extends DictionaryController
   with CacheDictionaryServices
