@@ -10,41 +10,41 @@ import es.scalamad.dictionary.models._
 
 trait DictionaryServices {
 
-  def interpreter[A](
+  def pure[A](
       effect: Effect[A], 
       state: ApplicationState): Future[(A, ApplicationState)] =
 
     effect match {
       case GetEntry(word, next) => {
-        interpreter(next(state.words.get(word)), state)
+        pure(next(state.words.get(word)), state)
       }
       case SetEntry(entry, next) => {
-        interpreter(next, state.copy(words = state.words + entry))
+        pure(next, state.copy(words = state.words + entry))
       }
       case RemoveEntry(word, next) => {
-        interpreter(next, state.copy(words = state.words - word))
+        pure(next, state.copy(words = state.words - word))
       }
       case ResetEntries(nwords, next) => {
-        interpreter(next, state.copy(words = nwords))
+        pure(next, state.copy(words = nwords))
       }
       case GetUser(nick, next) => {
-        interpreter(next(state.users.get(nick)), state)
+        pure(next(state.users.get(nick)), state)
       }
       case SetUser(user, next) => {
         val nuser = user.nick -> user
-        interpreter(next, state.copy(users = state.users + nuser))
+        pure(next, state.copy(users = state.users + nuser))
       }
       case RemoveUser(nick, next) => {
-        interpreter(next, state.copy(users = state.users - nick))
+        pure(next, state.copy(users = state.users - nick))
       }
       case ResetUsers(nusers, next) => {
-        interpreter(next, state.copy(users = nusers))
+        pure(next, state.copy(users = nusers))
       }
       case CanRead(user, next) => {
-        interpreter(next(user.permission.fold(false)(_ => true)), state)
+        pure(next(user.permission.fold(false)(_ => true)), state)
       }
       case CanWrite(user, next) => {
-        interpreter(next(user.permission.fold(false)(_ == READ_WRITE)), state)
+        pure(next(user.permission.fold(false)(_ == READ_WRITE)), state)
       }
       case Return(value) => Future((value, state))
     }
@@ -56,7 +56,7 @@ trait CacheDictionaryServices extends DictionaryServices {
 
   def impure[A](effect: Effect[A]): Future[A] = {
     val now = Cache.getOrElse[ApplicationState](STATE_KEY)(dfState)
-    interpreter(effect, now) map { case (a, next) =>
+    pure(effect, now) map { case (a, next) =>
       Cache.set(STATE_KEY, next)
       a
     }
