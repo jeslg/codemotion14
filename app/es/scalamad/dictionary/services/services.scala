@@ -55,17 +55,12 @@ trait DictionaryServices {
 trait CacheDictionaryServices extends DictionaryServices {
 
   def impure[A](effect: Effect[A]): Future[A] = {
-    interpreter(effect, getState) map { case (a, state) =>
-      setState(state)
+    val now = Cache.getOrElse[ApplicationState](STATE_KEY)(dfState)
+    interpreter(effect, now) map { case (a, next) =>
+      Cache.set(STATE_KEY, next)
       a
     }
   }
-
-  def getState: ApplicationState = 
-    Cache.getOrElse[ApplicationState](STATE_KEY)(dfState)
-
-  def setState(state: ApplicationState): Unit =
-    Cache.set(STATE_KEY, state)
 
   private val STATE_KEY = "state"
 
