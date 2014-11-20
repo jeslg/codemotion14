@@ -28,6 +28,7 @@ trait DictionaryServices {
         pure(next, state.copy(words = nwords))
       }
       case GetUser(nick, next) => {
+        println(s"GetUser: ${state.users.get(nick)}")
         pure(next(state.users.get(nick)), state)
       }
       case SetUser(user, next) => {

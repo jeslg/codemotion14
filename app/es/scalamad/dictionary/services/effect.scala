@@ -26,6 +26,26 @@ object Effect {
   def composeK[A, B, C](
     g: B => Effect[C],
     f: A => Effect[B]): A => Effect[C] = f(_) flatMap g
+
+  def optComposeK[A, B, C](
+      g: B => Effect[Option[C]],
+      f: A => Effect[Option[B]]): A => Effect[Option[C]] =
+    f andThen (_.flatMap(_.map(g(_)).getOrElse(Return(None))))
+
+  def optTransformer[A, B](f: A => Effect[B]): A => Effect[Option[B]] = {
+    f andThen (_.map(Option.apply))
+  }
+
+  def if_K[A, B, C](
+      cond: A => Effect[Option[Boolean]],
+      then_K: B => Effect[Option[C]],
+      else_K: B => Effect[Option[C]]): Tuple2[A, B] => Effect[Option[C]] = {
+    case (a, b) => {
+      cond(a).flatMap { ob =>
+        ob.map(if (_) then_K(b) else else_K(b)).getOrElse(Return(None))
+      }
+    }
+  }
 }
 
 case class Return[A](value: A) extends Effect[A]

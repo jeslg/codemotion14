@@ -10,6 +10,7 @@ import play.api.Play.current
 
 import es.scalamad.dictionary.models._
 import es.scalamad.dictionary.services._
+import Effect._
 
 object DictionaryController extends DictionaryController
   with CacheDictionaryServices
@@ -29,9 +30,16 @@ trait DictionaryController extends Controller
 
   // GET /:word
 
+  val authorizedSearch: Tuple2[String, String] => Effect[Option[String]] = 
+    if_K[String, String, String](
+      optComposeK(optTransformer(canRead), getUser),
+      getEntry,
+      _ => Return(None))
+
   def search(word: String): Action[AnyContent] =
-    ActionBuilder(getEntry, parse.anyContent)
-      .withTranslator(_ => word)
+    ActionBuilder[Tuple2[String, String], Option[String], AnyContent](
+      authorizedSearch, parse.anyContent)
+      .withTranslator(r => r.headers("user") -> word)
       .withInterpreter(impure _)
       .withResult {
         _.map(_.fold(NotFound("Could not find the requested word"))(Ok(_)))
@@ -92,6 +100,8 @@ trait DictionaryUtils { this: DictionaryController =>
           andThen (interpreter.get)
           andThen (result.get))
     }
+
+    // def toActionTests: State => (Action[Body], State) 
   }
 
   object ActionBuilder {
