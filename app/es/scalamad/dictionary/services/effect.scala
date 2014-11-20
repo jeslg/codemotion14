@@ -9,6 +9,13 @@ sealed trait Effect[A] {
   def flatMap[B](f: A => Effect[B]): Effect[B] = FlatMap(this, f)
 }
 
+object Effect {
+
+  def composeK[A, B, C](
+    f: B => Effect[C],
+    g: A => Effect[B]): A => Effect[C] = g(_) flatMap f
+}
+
 
 /* Combinators */
 

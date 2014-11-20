@@ -13,6 +13,7 @@ import play.api.Play.current
 
 import es.scalamad.dictionary.models._
 import es.scalamad.dictionary.services._
+import Effect.composeK
 
 object DictionaryController extends DictionaryController
   with CacheDictionaryServices
