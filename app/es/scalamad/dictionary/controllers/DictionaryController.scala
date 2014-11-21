@@ -49,7 +49,7 @@ trait DictionaryController extends Controller
       .withInterpreter(interpreter _)
       .withResult(_.fold(NotFound("Could not find the requested word"))(Ok(_)))
 
-  val authorizedSearch: Tuple2[String, String] => Repo[Option[String]] = 
+  def authorizedSearch: Tuple2[String, String] => Repo[Option[String]] = 
     if_K(
       cond = optComposeK(canRead, getUser), 
       then_K = getEntry, 
@@ -57,13 +57,9 @@ trait DictionaryController extends Controller
 
   // POST /
 
-  val authorizedAdd: Tuple2[String, Tuple2[String, String]] => Repo[Option[Unit]] =
-    if_K(
-      cond = optComposeK(canWrite, getUser),
-      then_K = setEntry,
-      else_K = _ => Return(None))
+  def add: Action[(String, String)] = addBuilder.toAction(getState)
 
-  def add: Action[(String, String)] =
+  def addBuilder =
     ActionBuilder(authorizedAdd, jsToWordParser)
       .withTranslator(r => r.headers.get("user").getOrElse("") -> r.body)
       .withInterpreter(interpreter _)
@@ -71,7 +67,13 @@ trait DictionaryController extends Controller
 	_.map(_ => Created("The word has been added successfully")).getOrElse {
 	  Forbidden("Could not add the new word")
 	}
-      }.toAction(getState)
+      }
+
+  def authorizedAdd: Tuple2[String, Tuple2[String, String]] => Repo[Option[Unit]] =
+    if_K(
+      cond = optComposeK(canWrite, getUser),
+      then_K = setEntry,
+      else_K = _ => Return(None))
   
   val jsToWordParser: BodyParser[(String,String)] = parse.json map jsToWord
 }
@@ -80,6 +82,9 @@ trait DictionaryTestableActions { this: DictionaryController =>
 
   def testSearch: State => Request[AnyContent] => Future[Tuple2[Result, State]] =
     searchBuilder.toTestableAction _
+
+  def testAdd: State => Request[Tuple2[String, String]] => Future[Tuple2[Result, State]] =
+    addBuilder.toTestableAction _
 }
 
 trait DictionaryUtils { this: DictionaryController =>

@@ -1,5 +1,7 @@
 package es.scalamad.dictionary.services
 
+import scala.language.implicitConversions
+
 import es.scalamad.dictionary.models._
 
 sealed trait Repo[A] {
