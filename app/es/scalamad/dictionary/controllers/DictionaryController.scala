@@ -42,10 +42,10 @@ trait DictionaryController extends Controller
   // GET /:word
 
   val authorizedSearch: Tuple2[String, String] => Repo[Option[String]] = 
-    if_K[String, String, String](
-      optComposeK(canRead, getUser),
-      getEntry,
-      _ => Return(None))
+    if_K(
+      cond = optComposeK(canRead, getUser), 
+      then_K = getEntry, 
+      else_K = _ => Return(None))
 
   def search(word: String): Action[AnyContent] =
     ActionBuilder(authorizedSearch, parse.anyContent)
@@ -56,12 +56,21 @@ trait DictionaryController extends Controller
 
   // POST /
 
+  val authorizedAdd: Tuple2[String, Tuple2[String, String]] => Repo[Option[Unit]] =
+    if_K(
+      cond = optComposeK(canWrite, getUser),
+      then_K = setEntry,
+      else_K = _ => Return(None))
+
   def add: Action[(String, String)] =
-    ActionBuilder(setEntry, jsToWordParser)
-      .withTranslator(_.body)
+    ActionBuilder(authorizedAdd, jsToWordParser)
+      .withTranslator(r => r.headers("user") -> r.body)
       .withInterpreter(interpreter _)
-      .withResult(_ => Created("The word has been added successfully"))
-      .toAction(getState)
+      .withResult {
+	_.map(_ => Created("The word has been added successfully")).getOrElse {
+	  Forbidden("Could not add the new word")
+	}
+      }.toAction(getState)
   
   val jsToWordParser: BodyParser[(String,String)] = parse.json map jsToWord
 }
