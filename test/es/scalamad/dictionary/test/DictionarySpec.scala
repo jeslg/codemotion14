@@ -1,6 +1,7 @@
 package es.scalamad.dictionary.test
 
 import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import org.scalatest._
 import org.scalatest.mock._
@@ -18,22 +19,21 @@ import models._
 import services._
 import controllers._
 
-class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
+class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
 
-  def FakeDictionaryController(state: ApplicationState): DictionaryController = 
-    new DictionaryController {
-      override def getState: ApplicationState = state
-      // XXX: Do we really need to implement this?
-      override def setState(state: ApplicationState): DictionaryServices = 
-        FakeDictionaryController(state)
-    }
+  object FakeDictionaryController extends DictionaryController 
+      with MapRepoInterpreter {
 
-  val dfState = ApplicationState(
-    Map(
-      "mr_proper"    -> User("Mr", "Proper", Option(READ_WRITE)),
-      "don_limpio"   -> User("Don", "Limpio", Option(READ)),
-      "wipp_express" -> User("Wipp", "Express", None)), 
-    Map("known" -> "a well known word"))
+    val result = interpreter(
+      for {
+	_ <- setUser(User("Mr", "Proper", Option(READ_WRITE)))
+	_ <- setUser(User("Don", "Limpio", Option(READ)))
+	_ <- setUser(User("Wipp", "Express", None))
+	_ <- setEntry("known" -> "a very well known word")
+      } yield (), getState)
+
+    result.map(t => setState(t._2))
+  }
 
   "add service" should {
 
@@ -43,32 +43,32 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
         "/", 
         FakeHeaders(Seq(("user", Seq("mr_proper")))),
     	("new", "a new definition"))
-      val result = FakeDictionaryController(dfState).add(request)
+      val result = FakeDictionaryController.add(request)
       status(result) mustEqual CREATED
     }
 
     "fail if the user is not empowered to do so" in {
       val request = FakeRequest(
-	POST, 
-	"/", 
-	FakeHeaders(Seq(("user", Seq("don_limpio")))),
-	("new", "a brand new definition"))
-      val result: Future[Result] = FakeDictionaryController(dfState).add(request)
+    	POST, 
+    	"/", 
+    	FakeHeaders(Seq(("user", Seq("don_limpio")))),
+    	("new", "a brand new definition"))
+      val result = FakeDictionaryController.add(request)
       status(result) mustEqual FORBIDDEN
-      contentAsString(result) mustEqual "You are not allowed to write"
+      contentAsString(result) mustEqual "Could not add the new word"
 
       val request2 = request.withHeaders(("user", "wipp_express"))
-      val result2 = FakeDictionaryController(dfState).add(request2)
+      val result2 = FakeDictionaryController.add(request2)
       status(result2) mustEqual FORBIDDEN
-      contentAsString(result2) mustEqual "You are not allowed to write"
+      contentAsString(result2) mustEqual "Could not add the new word"
     }
 
     "fail if the user does not provide a `user` request" in {
       val request = FakeRequest(POST, "/", FakeHeaders(), 
         ("new", "a brand new definition"))
-      val result: Future[Result] = FakeDictionaryController(dfState).add(request)
-      status(result) mustEqual UNAUTHORIZED
-      contentAsString(result) mustEqual "Invalid 'user' header"
+      val result = FakeDictionaryController.add(request)
+      status(result) mustEqual FORBIDDEN
+      contentAsString(result) mustEqual "Could not add the new word"
     }
   }
 
@@ -78,20 +78,18 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerTest {
       val word = "known"
       val request = 
         FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
-      val result: Future[Result] = 
-        FakeDictionaryController(dfState).search(word)(request)
+      val result = FakeDictionaryController.search(word)(request)
       status(result) mustEqual OK
-      contentAsString(result) mustEqual "a well known word"
+      contentAsString(result) mustEqual "a very well known word"
     }
 
     "not find a non-existing word" in {
       val word = "unknown"
       val request = 
         FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
-      val result: Future[Result] = 
-        FakeDictionaryController(dfState).search(word)(request)
+      val result = FakeDictionaryController.search(word)(request)
       status(result) mustEqual NOT_FOUND
-      contentAsString(result) mustEqual s"The word '$word' does not exist"
+      contentAsString(result) mustEqual s"Could not find the requested word"
     }
   }
 }

@@ -1,119 +1,81 @@
 package es.scalamad.dictionary.controllers
 
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.language.implicitConversions
 
 import play.api._
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
-import play.api.libs.iteratee._
 import play.api.libs.json._
-import play.api.libs.ws._
 import play.api.mvc._
 import play.api.Play.current
 
 import es.scalamad.dictionary.models._
 import es.scalamad.dictionary.services._
+import Repo._
 
-object DictionaryController extends DictionaryController
-  with CacheDictionaryServices
+object DictionaryController extends DictionaryController 
+  with CacheRepoInterpreter {
+
+  interpreter(
+    for {
+      _ <- setUser(User("Mr", "Proper", Option(READ_WRITE)))
+      _ <- setUser(User("Don", "Limpio", Option(READ)))
+      _ <- setUser(User("Wipp", "Express", None))
+      _ <- setEntry("code" -> "a system of words, letters, or signs")
+      _ <- setEntry("emotion" -> "a feeling of any kind")
+    } yield (), getState)
+}
 
 trait DictionaryController extends Controller
-  with DictionaryActions
-  with DictionaryWebSockets
-  
-trait DictionaryActions extends Controller
-  with CollinsDictionary 
-  with DictionaryFunctions
   with DictionaryUtils
-  with DictionaryServices
+  with RepoInterpreter
   with UserServices 
-  with WordServices {
+  with WordServices
+  with PermissionServices {
 
   // GET /
 
-  def helloDictionary = Action {
-    Ok("Welcome to the CodeMotion14 Dictionary!")
+  def helloDictionary: Action[AnyContent] = Action {
+    Ok("Welcome to the ScalaMAD Dictionary!")
   }
 
   // GET /:word
 
+  val authorizedSearch: Tuple2[String, String] => Repo[Option[String]] = 
+    if_K(
+      cond = optComposeK(canRead, getUser), 
+      then_K = getEntry, 
+      else_K = _ => Return(None))
+
   def search(word: String): Action[AnyContent] =
-    (Action 
-     andThen UserRefiner 
-     andThen ReadFilter 
-     andThen UserLogging).async { urequest =>
-      run(getWord(word)).map(d => Future(Ok(d))).getOrElse {
-        if (isFurtherSearch(urequest)) {
-          wsTokenAndSearch(word).map { odef =>
-            odef.map(Ok(_)).getOrElse {
-              NotFound(s"The word '$word' does not exist")
-            }
-          }
-        } else {
-          Future(NotFound(s"The word '$word' does not exist"))
-        }
-      }
-    }
-
-  val FURTHER_QUERY_NAME = "further"
-
-  def isFurtherSearch[A](request: Request[A]): Boolean =
-    request.queryString.contains(FURTHER_QUERY_NAME) &&
-    request.queryString(FURTHER_QUERY_NAME).size > 0 && 
-    request.queryString(FURTHER_QUERY_NAME).head.toBoolean
+    ActionBuilder(authorizedSearch, parse.anyContent)
+      .withTranslator(r => r.headers("user") -> word)
+      .withInterpreter(interpreter _)
+      .withResult(_.fold(NotFound("Could not find the requested word"))(Ok(_)))
+      .toAction(getState)
 
   // POST /
 
-  def add: Action[(String,String)] = {
-    (Action 
-     andThen UserRefiner 
-     andThen WriteFilter 
-     andThen UserLogging)(jsToWordParser) { urequest =>
-       val entry@(word, _) = urequest.body
-       run(setWord(entry))
-       val url = routes.DictionaryController.search(word).url
-       Created(s"The word '$word' has been added successfully")
-         .withHeaders((LOCATION -> url))
-    }
-  }
+  val authorizedAdd: Tuple2[String, Tuple2[String, String]] => Repo[Option[Unit]] =
+    if_K(
+      cond = optComposeK(canWrite, getUser),
+      then_K = setEntry,
+      else_K = _ => Return(None))
+
+  def add: Action[(String, String)] =
+    ActionBuilder(authorizedAdd, jsToWordParser)
+      .withTranslator(r => r.headers.get("user").getOrElse("") -> r.body)
+      .withInterpreter(interpreter _)
+      .withResult {
+	_.map(_ => Created("The word has been added successfully")).getOrElse {
+	  Forbidden("Could not add the new word")
+	}
+      }.toAction(getState)
   
   val jsToWordParser: BodyParser[(String,String)] = parse.json map jsToWord
 }
 
-trait DictionaryWebSockets { this: Controller 
-    with DictionaryServices 
-    with WordServices 
-    with DictionaryUtils =>
-
-  /*
-   * GET /socket/add 
-   * 
-   * This can be tested by using: http://websocket.org/echo.html
-   */
-   
-  def socketAdd = WebSocket.using[String] { request =>
-    val in = asJson ><> asEntry ><> existingFilter &>> toDictionary
-    val out = Enumerator("You're using the Dictionary WebSocket Service")
-    (in, out)
-  }
-
-  def asJson: Enumeratee[String, JsValue] = Enumeratee.map(Json.parse)
-
-  def asEntry = Enumeratee.map(jsToWord)
-
-  def existingFilter = 
-    Enumeratee.filter[(String, String)] { 
-      case (word, _) => ! (run(containsWord(word)))
-    }
-
-  def toDictionary = {
-    Iteratee.foreach[(String, String)] { 
-      case (word, definition) => run(setWord(word, definition))
-    }
-  }
-}
-
-trait DictionaryUtils {
+trait DictionaryUtils { this: DictionaryController =>
 
   implicit class OptionExtensions[T](option: Option[T]) {
 
@@ -126,86 +88,43 @@ trait DictionaryUtils {
 
   def jsToWord(jsv: JsValue): (String, String) =
     (jsv \ "word").as[String] -> (jsv \ "definition").as[String]
-}
 
-trait DictionaryFunctions { this: Controller 
-    with DictionaryUtils 
-    with DictionaryServices 
-    with UserServices =>
+  class ActionBuilder[In, Out, Body](
+    service: In => Repo[Out],
+    parser: BodyParser[Body],
+    translator: Option[Request[Body] => In] = None,
+    interpreter: Option[(Repo[Out], State) => Future[(Out, State)]] = None,
+    result: Option[Out => Result] = None) {
 
-  val USER_HEADER_NAME = "user"
+    def withTranslator(translator: Request[Body] => In) = 
+      new ActionBuilder(
+        service, parser, Option(translator), interpreter, result)
 
-  class UserRequest[A](
-    val user: User, 
-    request: Request[A]) extends WrappedRequest[A](request)
+    def withInterpreter(interpreter: (Repo[Out], State) => Future[(Out, State)]) =
+      new ActionBuilder(
+        service, parser, translator, Option(interpreter), result)
 
-  object UserRefiner extends ActionRefiner[Request, UserRequest] {
+    def withResult(result: Out => Result) =
+      new ActionBuilder(
+        service, parser, translator, interpreter, Option(result))
 
-    def refine[A](request: Request[A]): Future[Either[Result,UserRequest[A]]] =
-      Future {
-        request.headers
-          .get(USER_HEADER_NAME)
-          .map(nick => run(getUser(nick)))
-          .flatten
-          .map(new UserRequest(_, request))
-          .toRight(Unauthorized(s"Invalid '$USER_HEADER_NAME' header"))
-      }
-  }
-
-  object UserLogging extends ActionTransformer[UserRequest, UserRequest] {
-
-    def transform[A](urequest: UserRequest[A]): Future[UserRequest[A]] = 
-      Future {
-        Logger.info(s"@${urequest.user.nick} requests ${urequest.toString}")
-        urequest
-      }
-  }
-
-  class PermissionFilter(
-      permitted: User => Boolean, 
-      err: String) extends ActionFilter[UserRequest] {
-
-    def filter[A](urequest: UserRequest[A]): Future[Option[Result]] = 
-      Future {
-        Option(Forbidden(err))
-          .unless(permitted(urequest.user))
-      }
-  }
-
-  object ReadFilter extends PermissionFilter(
-    Permission.canRead,
-    "You are not allowed to read")
-
-  object WriteFilter extends PermissionFilter(
-    Permission.canWrite, 
-    "You are not allowed to write")
-}
-
-trait CollinsDictionary { this: Controller with DictionaryFunctions =>
-
-  def wsToken: Future[String] = {
-    val rel = routes.CollinsDictionaryController.wsToken.url
-    val holder = WS.url(s"http://localhost:9000$rel")
-    val response = holder.get
-    response map (_.body)
-  }
-
-  def wsSearch(word: String, token: String): Future[Option[String]] = {
-    val rel = routes.CollinsDictionaryController.wsSearch(word)
-    val holder = WS.url(s"http://localhost:9000$rel").withBody(token)
-    val response = holder.get
-    response map { wsr =>
-      wsr.status match {
-        case OK => Option(wsr.body)
-        case _ => None
-      }
+    def toAction(state: State): Action[Body] = {
+      Action.async(parser)(
+        translator.get
+          andThen service
+          andThen (repo => interpreter.get(repo, state))
+	  andThen (_.map(t => { setState(t._2); t._1 }))
+          andThen (_.map(result.get)))
     }
+
+    // def toActionTests: State => (Action[Body], State) 
   }
 
-  def wsTokenAndSearch(word: String): Future[Option[String]] = {
-    for {
-      token <- wsToken
-      odef  <- wsSearch(word, token)
-    } yield odef
+  object ActionBuilder {
+
+    def apply[In, Out, Body](
+        service: In => Repo[Out], 
+        parser: BodyParser[Body]) =
+      new ActionBuilder[In, Out, Body](service, parser)
   }
 }

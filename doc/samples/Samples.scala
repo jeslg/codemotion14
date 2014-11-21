@@ -83,9 +83,9 @@ object Samples3 extends Samples3Functions
 object Samples4{
   import scala.util.Try
   
-  val k1 = Kleisli((x: String) => Try(Integer.parseInt(x)).toOption)
+  // val k1 = Kleisli((x: String) => Try(Integer.parseInt(x)).toOption)
 
-  val k2 = Kleisli((i: Int) => Option(i+1))
+  // val k2 = Kleisli((i: Int) => Option(i+1))
 
   // k2 <=< k1
 }
