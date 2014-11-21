@@ -52,9 +52,9 @@ trait DataTypes{
 
   /* PURE */ 
 
-  // sealed trait Option[+T]
-  // case object None extends Option[Nothing]
-  // case class Some[+T](value: T) extends Option[T]
+  sealed trait Option[+T]
+  case object None extends Option[Nothing]
+  case class Some[+T](value: T) extends Option[T]
 
   sealed trait Logging[A]{
     
