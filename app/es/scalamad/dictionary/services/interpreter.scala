@@ -21,15 +21,13 @@ trait RepoInterpreter {
 
 trait MapRepoInterpreter extends RepoInterpreter {
 
-  case class ApplicationState(
+  case class State(
     users: Map[String, User],
     words: Map[String, String])
 
-  type State = ApplicationState
+  var state: State = State(Map(), Map()) 
 
-  var state: State = ApplicationState(Map(), Map()) 
-
-  def getState = state
+  def getState: State = state
 
   def setState(next: State) = state = next
 
@@ -60,7 +58,9 @@ trait MapRepoInterpreter extends RepoInterpreter {
       case CanWrite(user, next) => {
         interpreter(next(user.permission.fold(false)(_ == READ_WRITE)), state)
       }
-      case Return(value) => Future((value, state))
+      case Return(value) => {
+	Future((value, state))
+      }
     }
 }
 

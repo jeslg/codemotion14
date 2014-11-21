@@ -23,7 +23,7 @@ object DictionaryController extends DictionaryController
       _ <- setUser(User("Wipp", "Express", None))
       _ <- setEntry("code" -> "a system of words, letters, or signs")
       _ <- setEntry("emotion" -> "a feeling of any kind")
-    } yield (), state)
+    } yield (), getState)
 }
 
 trait DictionaryController extends Controller
@@ -64,7 +64,7 @@ trait DictionaryController extends Controller
 
   def add: Action[(String, String)] =
     ActionBuilder(authorizedAdd, jsToWordParser)
-      .withTranslator(r => r.headers("user") -> r.body)
+      .withTranslator(r => r.headers.get("user").getOrElse("") -> r.body)
       .withInterpreter(interpreter _)
       .withResult {
 	_.map(_ => Created("The word has been added successfully")).getOrElse {
