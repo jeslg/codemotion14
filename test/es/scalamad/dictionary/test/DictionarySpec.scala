@@ -1,6 +1,9 @@
 package es.scalamad.dictionary.test
 
-import scala.concurrent.Future
+import scala.language.postfixOps
+
+import scala.concurrent._
+import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import org.scalatest._
@@ -21,7 +24,8 @@ import controllers._
 
 class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
 
-  object FakeDictionaryController extends DictionaryController 
+  object FakeDictionaryController extends DictionaryController
+      with DictionaryTestableActions
       with MapRepoInterpreter {
 
     val result = interpreter(
@@ -34,6 +38,8 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
 
     result.map(t => setState(t._2))
   }
+
+  import FakeDictionaryController._
 
   "add service" should {
 
@@ -75,21 +81,36 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
   "search service" should {
 
     "find an existing word if the user is empowered to do so" in {
-      val word = "known"
+      val old = State(
+	users = Map("don_limpio" -> User("Don", "Limpio", Option(READ))),
+	words = Map("known" -> "a very well known word"))
       val request = 
-        FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
-      val result = FakeDictionaryController.search(word)(request)
+        FakeRequest(GET, s"/known").withHeaders(("user" -> "don_limpio"))
+
+      val future = FakeDictionaryController.testSearch(old)(request)
+      val result = future.map(_._1)
+      val next = future.map(_._2)
+
       status(result) mustEqual OK
       contentAsString(result) mustEqual "a very well known word"
+      Await.result(next, 10 seconds) mustEqual (old)
     }
 
     "not find a non-existing word" in {
       val word = "unknown"
+      val old = State(
+	users = Map("don_limpio" -> User("Don", "Limpio", Option(READ))),
+	words = Map())
       val request = 
-        FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
-      val result = FakeDictionaryController.search(word)(request)
+	FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
+
+      val future = FakeDictionaryController.testSearch(old)(request)
+      val result = future.map(_._1)
+      val next = future.map(_._2)
+
       status(result) mustEqual NOT_FOUND
       contentAsString(result) mustEqual s"Could not find the requested word"
+      Await.result(next, 10 seconds) mustEqual (old)
     }
   }
 }

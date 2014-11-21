@@ -41,18 +41,19 @@ trait DictionaryController extends Controller
 
   // GET /:word
 
+  def search(word: String): Action[AnyContent] = searchBuilder.toAction(getState)
+
+  def searchBuilder =
+    ActionBuilder(authorizedSearch, parse.anyContent)
+      .withTranslator(r => r.headers("user") -> r.path.tail)
+      .withInterpreter(interpreter _)
+      .withResult(_.fold(NotFound("Could not find the requested word"))(Ok(_)))
+
   val authorizedSearch: Tuple2[String, String] => Repo[Option[String]] = 
     if_K(
       cond = optComposeK(canRead, getUser), 
       then_K = getEntry, 
       else_K = _ => Return(None))
-
-  def search(word: String): Action[AnyContent] =
-    ActionBuilder(authorizedSearch, parse.anyContent)
-      .withTranslator(r => r.headers("user") -> word)
-      .withInterpreter(interpreter _)
-      .withResult(_.fold(NotFound("Could not find the requested word"))(Ok(_)))
-      .toAction(getState)
 
   // POST /
 
@@ -73,6 +74,12 @@ trait DictionaryController extends Controller
       }.toAction(getState)
   
   val jsToWordParser: BodyParser[(String,String)] = parse.json map jsToWord
+}
+
+trait DictionaryTestableActions { this: DictionaryController =>
+
+  def testSearch: State => Request[AnyContent] => Future[Tuple2[Result, State]] =
+    searchBuilder.toTestableAction _
 }
 
 trait DictionaryUtils { this: DictionaryController =>
@@ -108,16 +115,21 @@ trait DictionaryUtils { this: DictionaryController =>
       new ActionBuilder(
         service, parser, translator, interpreter, Option(result))
 
-    def toAction(state: State): Action[Body] = {
+    def toAction(state: State): Action[Body] =
       Action.async(parser)(
         translator.get
           andThen service
           andThen (repo => interpreter.get(repo, state))
-	  andThen (_.map(t => { setState(t._2); t._1 }))
-          andThen (_.map(result.get)))
-    }
+	  andThen (_.map(t => { 
+	    setState(t._2)
+	    result.get(t._1) 
+	  })))
 
-    // def toActionTests: State => (Action[Body], State) 
+    def toTestableAction(state: State): Request[Body] => Future[Tuple2[Result, State]] =
+      (translator.get
+          andThen service
+          andThen (repo => interpreter.get(repo, state))
+	  andThen (_.map(t => (result.get(t._1), t._2))))
   }
 
   object ActionBuilder {
