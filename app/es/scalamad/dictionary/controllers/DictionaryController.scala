@@ -1,6 +1,7 @@
 package es.scalamad.dictionary.controllers
 
 import scala.concurrent.Future
+import scala.language.implicitConversions
 
 import play.api._
 import play.api.libs.concurrent.Execution.Implicits.defaultContext
@@ -12,12 +13,22 @@ import es.scalamad.dictionary.models._
 import es.scalamad.dictionary.services._
 import Repo._
 
-object DictionaryController extends DictionaryController
-  with CacheDictionaryServices
+object DictionaryController extends DictionaryController 
+  with CacheRepoInterpreter {
+
+  interpreter(
+    for {
+      _ <- setUser(User("Mr", "Proper", Option(READ_WRITE)))
+      _ <- setUser(User("Don", "Limpio", Option(READ)))
+      _ <- setUser(User("Wipp", "Express", None))
+      _ <- setEntry("code" -> "a system of words, letters, or signs")
+      _ <- setEntry("emotion" -> "a feeling of any kind")
+    } yield (), state)
+}
 
 trait DictionaryController extends Controller
   with DictionaryUtils
-  with DictionaryServices
+  with RepoInterpreter
   with UserServices 
   with WordServices
   with PermissionServices {
@@ -32,30 +43,25 @@ trait DictionaryController extends Controller
 
   val authorizedSearch: Tuple2[String, String] => Repo[Option[String]] = 
     if_K[String, String, String](
-      optComposeK(optTransformer(canRead), getUser),
+      optComposeK(canRead, getUser),
       getEntry,
       _ => Return(None))
 
   def search(word: String): Action[AnyContent] =
-    ActionBuilder[Tuple2[String, String], Option[String], AnyContent](
-      authorizedSearch, parse.anyContent)
+    ActionBuilder(authorizedSearch, parse.anyContent)
       .withTranslator(r => r.headers("user") -> word)
-      .withInterpreter(impure _)
-      .withResult {
-        _.map(_.fold(NotFound("Could not find the requested word"))(Ok(_)))
-      }.toAction
+      .withInterpreter(interpreter _)
+      .withResult(_.fold(NotFound("Could not find the requested word"))(Ok(_)))
+      .toAction(getState)
 
   // POST /
 
   def add: Action[(String, String)] =
     ActionBuilder(setEntry, jsToWordParser)
       .withTranslator(_.body)
-      .withInterpreter(impure _)
-      .withResult {
-        _.map(_ => Created("The word has been added successfully"))
-          // FIXME: where can I get this location?
-          // .withHeaders((LOCATION -> url))
-      }.toAction
+      .withInterpreter(interpreter _)
+      .withResult(_ => Created("The word has been added successfully"))
+      .toAction(getState)
   
   val jsToWordParser: BodyParser[(String,String)] = parse.json map jsToWord
 }
@@ -78,27 +84,28 @@ trait DictionaryUtils { this: DictionaryController =>
     service: In => Repo[Out],
     parser: BodyParser[Body],
     translator: Option[Request[Body] => In] = None,
-    interpreter: Option[Repo[Out] => Future[Out]] = None,
-    result: Option[Future[Out] => Future[Result]] = None) {
+    interpreter: Option[(Repo[Out], State) => Future[(Out, State)]] = None,
+    result: Option[Out => Result] = None) {
 
     def withTranslator(translator: Request[Body] => In) = 
       new ActionBuilder(
         service, parser, Option(translator), interpreter, result)
 
-    def withInterpreter(interpreter: Repo[Out] => Future[Out]) =
+    def withInterpreter(interpreter: (Repo[Out], State) => Future[(Out, State)]) =
       new ActionBuilder(
         service, parser, translator, Option(interpreter), result)
 
-    def withResult(result: Future[Out] => Future[Result]) =
+    def withResult(result: Out => Result) =
       new ActionBuilder(
         service, parser, translator, interpreter, Option(result))
 
-    def toAction: Action[Body] = {
+    def toAction(state: State): Action[Body] = {
       Action.async(parser)(
         translator.get
           andThen service
-          andThen (interpreter.get)
-          andThen (result.get))
+          andThen (repo => interpreter.get(repo, state))
+	  andThen (_.map(t => { setState(t._2); t._1 }))
+          andThen (_.map(result.get)))
     }
 
     // def toActionTests: State => (Action[Body], State) 

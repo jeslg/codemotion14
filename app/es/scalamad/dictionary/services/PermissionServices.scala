@@ -2,7 +2,7 @@ package es.scalamad.dictionary.services
 
 import es.scalamad.dictionary.models._
 
-trait PermissionServices extends DictionaryServices {
+trait PermissionServices {
 
   val canRead: User => Repo[Boolean] = CanRead(_, Return(_))
 

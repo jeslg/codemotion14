@@ -10,11 +10,9 @@ sealed trait Repo[A] {
     case GetEntry(word, next) => GetEntry(word, next(_) flatMap f)
     case SetEntry(entry, next) => SetEntry(entry, next flatMap f)
     case RemoveEntry(word, next) => RemoveEntry(word, next flatMap f)
-    case ResetEntries(state, next) => ResetEntries(state, next flatMap f)
     case GetUser(nick, next) => GetUser(nick, next(_) flatMap f)
     case SetUser(user, next) => SetUser(user, next flatMap f)
     case RemoveUser(nick, next) => RemoveUser(nick, next flatMap f)
-    case ResetUsers(state, next) => ResetUsers(state, next flatMap f)
     case CanRead(user, next) => CanRead(user, next(_) flatMap f)
     case CanWrite(user, next) => CanWrite(user, next(_) flatMap f)
     case Return(value) => f(value)
@@ -32,7 +30,7 @@ object Repo {
       f: A => Repo[Option[B]]): A => Repo[Option[C]] =
     f andThen (_.flatMap(_.map(g(_)).getOrElse(Return(None))))
 
-  def optTransformer[A, B](f: A => Repo[B]): A => Repo[Option[B]] = {
+  implicit def optTransformer[A, B](f: A => Repo[B]): A => Repo[Option[B]] = {
     f andThen (_.map(Option.apply))
   }
 
@@ -61,9 +59,6 @@ case class SetEntry[A](entry: (String, String), next: Repo[A])
 case class RemoveEntry[A](word: String, next: Repo[A]) 
     extends Repo[A]
 
-case class ResetEntries[A](state: Map[String, String], next: Repo[A]) 
-    extends Repo[A]
-
 // users
 
 case class GetUser[A](nick: String, next: Option[User] => Repo[A]) 
@@ -73,9 +68,6 @@ case class SetUser[A](user: User, next: Repo[A])
     extends Repo[A]
 
 case class RemoveUser[A](nick: String, next: Repo[A]) 
-    extends Repo[A]
-
-case class ResetUsers[A](state: Map[String, User], next: Repo[A]) 
     extends Repo[A]
 
 // permission
