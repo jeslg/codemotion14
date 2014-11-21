@@ -80,10 +80,10 @@ trait DictionaryController extends Controller
 
 trait DictionaryTestableActions { this: DictionaryController =>
 
-  def testSearch: State => Request[AnyContent] => Future[Tuple2[Result, State]] =
+  def testableSearch: State => Request[AnyContent] => Future[Tuple2[Result, State]] =
     searchBuilder.toTestableAction _
 
-  def testAdd: State => Request[Tuple2[String, String]] => Future[Tuple2[Result, State]] =
+  def testableAdd: State => Request[Tuple2[String, String]] => Future[Tuple2[Result, State]] =
     addBuilder.toTestableAction _
 }
 

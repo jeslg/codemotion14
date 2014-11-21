@@ -26,18 +26,7 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
 
   object FakeDictionaryController extends DictionaryController
       with DictionaryTestableActions
-      with MapRepoInterpreter {
-
-    val result = interpreter(
-      for {
-	_ <- setUser(User("Mr", "Proper", Option(READ_WRITE)))
-	_ <- setUser(User("Don", "Limpio", Option(READ)))
-	_ <- setUser(User("Wipp", "Express", None))
-	_ <- setEntry("known" -> "a very well known word")
-      } yield (), getState)
-
-    result.map(t => setState(t._2))
-  }
+      with MapRepoInterpreter
 
   import FakeDictionaryController._
 
@@ -49,8 +38,18 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
         "/", 
         FakeHeaders(Seq(("user", Seq("mr_proper")))),
     	("new", "a new definition"))
-      val result = FakeDictionaryController.add(request)
+      val old = State(
+	users = Map("mr_proper" -> User("Mr", "Proper", Option(READ_WRITE))),
+	words = Map())
+
+      val future = FakeDictionaryController.testableAdd(old)(request)
+      val result = future.map(_._1)
+      val next = future.map(_._2)
+
       status(result) mustEqual CREATED
+      Await.result(next, 10 seconds) mustEqual (State(
+	users = Map("mr_proper" -> User("Mr", "Proper", Option(READ_WRITE))),
+	words = Map("new" -> "a new definition")))
     }
 
     "fail if the user is not empowered to do so" in {
@@ -87,7 +86,7 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
       val request = 
         FakeRequest(GET, s"/known").withHeaders(("user" -> "don_limpio"))
 
-      val future = FakeDictionaryController.testSearch(old)(request)
+      val future = FakeDictionaryController.testableSearch(old)(request)
       val result = future.map(_._1)
       val next = future.map(_._2)
 
@@ -104,7 +103,7 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
       val request = 
 	FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
 
-      val future = FakeDictionaryController.testSearch(old)(request)
+      val future = FakeDictionaryController.testableSearch(old)(request)
       val result = future.map(_._1)
       val next = future.map(_._2)
 
