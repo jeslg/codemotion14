@@ -30,6 +30,9 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
 
   import FakeDictionaryController._
 
+  def extract(result: Future[(Result, State)]): (Future[Result], State) =
+    (result.map(_._1), Await.result(result, 10 seconds)._2)
+
   "add service" should {
 
     "allow adding new words if the user is empowered to do so" in {
@@ -39,17 +42,15 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
         FakeHeaders(Seq(("user", Seq("mr_proper")))),
     	("new", "a new definition"))
       val old = State(
-	users = Map("mr_proper" -> User("Mr", "Proper", Option(READ_WRITE))),
-	words = Map())
+	users = Map("mr_proper" -> User("Mr", "Proper", Option(READ_WRITE))))
 
-      val future = FakeDictionaryController.testableAdd(old)(request)
-      val result = future.map(_._1)
-      val next = future.map(_._2)
+      val (result, next) = 
+	extract(FakeDictionaryController.testableAdd(old)(request))
 
       status(result) mustEqual CREATED
-      Await.result(next, 10 seconds) mustEqual (State(
+      next mustEqual State(
 	users = Map("mr_proper" -> User("Mr", "Proper", Option(READ_WRITE))),
-	words = Map("new" -> "a new definition")))
+	words = Map("new" -> "a new definition"))
     }
 
     "fail if the user is not empowered to do so" in {
@@ -58,22 +59,28 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
     	"/", 
     	FakeHeaders(Seq(("user", Seq("don_limpio")))),
     	("new", "a brand new definition"))
-      val result = FakeDictionaryController.add(request)
+      val old = State(
+	users = Map("don_limpio" -> User("Don", "Limpio", Option(READ))))
+	
+      val (result, next) = 
+	extract(FakeDictionaryController.testableAdd(old)(request))
+
       status(result) mustEqual FORBIDDEN
       contentAsString(result) mustEqual "Could not add the new word"
-
-      val request2 = request.withHeaders(("user", "wipp_express"))
-      val result2 = FakeDictionaryController.add(request2)
-      status(result2) mustEqual FORBIDDEN
-      contentAsString(result2) mustEqual "Could not add the new word"
+      next mustEqual old
     }
 
     "fail if the user does not provide a `user` request" in {
+      val old = State()
       val request = FakeRequest(POST, "/", FakeHeaders(), 
         ("new", "a brand new definition"))
-      val result = FakeDictionaryController.add(request)
+
+      val (result, next) = 
+	extract(FakeDictionaryController.testableAdd(old)(request))
+
       status(result) mustEqual FORBIDDEN
       contentAsString(result) mustEqual "Could not add the new word"
+      next mustEqual next
     }
   }
 
@@ -86,13 +93,12 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
       val request = 
         FakeRequest(GET, s"/known").withHeaders(("user" -> "don_limpio"))
 
-      val future = FakeDictionaryController.testableSearch(old)(request)
-      val result = future.map(_._1)
-      val next = future.map(_._2)
+      val (result, next) =
+	extract(FakeDictionaryController.testableSearch(old)(request))
 
       status(result) mustEqual OK
       contentAsString(result) mustEqual "a very well known word"
-      Await.result(next, 10 seconds) mustEqual (old)
+      next mustEqual old
     }
 
     "not find a non-existing word" in {
@@ -103,13 +109,12 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
       val request = 
 	FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
 
-      val future = FakeDictionaryController.testableSearch(old)(request)
-      val result = future.map(_._1)
-      val next = future.map(_._2)
+      val (result, next) =
+	extract(FakeDictionaryController.testableSearch(old)(request))
 
       status(result) mustEqual NOT_FOUND
       contentAsString(result) mustEqual s"Could not find the requested word"
-      Await.result(next, 10 seconds) mustEqual (old)
+      next mustEqual old
     }
   }
 }
