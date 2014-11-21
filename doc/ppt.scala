@@ -258,8 +258,9 @@ def factorial1(n: Int): (Logging, Option[Int]) =
   else {
     for {
       rec_result <- factorial(n-1) 
+      result = n * rec_result
       _ <- log(Debug(s"factorial($n)=$result"))
-    } yield n * rec_result
+    } yield result
   }
 
 }

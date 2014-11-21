@@ -2,21 +2,14 @@ package es.scalamad.dictionary.services
 
 import es.scalamad.dictionary.models._
 
-trait WordServices extends DictionaryServices {
+trait WordServices {
 
-  def containsWord(word: String): Service[Boolean] = { state =>
-    (state.words.contains(word), state)
-  }
+  val getEntry: String => Repo[Option[String]] = 
+    GetEntry(_, Return(_))
 
-  def getWord(word: String): Service[Option[String]] = { state =>
-    (state.words.get(word), state)
-  }
+  val setEntry: ((String, String)) => Repo[Unit] = 
+    SetEntry(_, Return(()))
 
-  def setWord(entry: (String, String)): Service[Unit] = { state =>
-    ((), state.copy(words = state.words + entry))
-  }
-
-  def resetWords(entries: (String, String)*): Service[Unit] = { state =>
-    ((), state.copy(words = entries.toMap))
-  }
+  val removeEntry: String => Repo[Unit] = 
+    RemoveEntry(_, Return(()))
 }
