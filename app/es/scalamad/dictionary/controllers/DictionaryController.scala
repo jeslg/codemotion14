@@ -51,7 +51,7 @@ trait DictionaryController extends Controller
 
   def authorizedSearch: Tuple2[String, String] => Repo[Option[String]] = 
     if_K(
-      cond = optComposeK(canRead, getUser), 
+      cond = nickCanRead, 
       then_K = getEntry, 
       else_K = _ => Return(None))
 
@@ -71,7 +71,7 @@ trait DictionaryController extends Controller
 
   def authorizedAdd: Tuple2[String, Tuple2[String, String]] => Repo[Option[Unit]] =
     if_K(
-      cond = optComposeK(canWrite, getUser),
+      cond = nickCanWrite,
       then_K = setEntry,
       else_K = _ => Return(None))
   
