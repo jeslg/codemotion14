@@ -76,12 +76,6 @@ trait DataTypes{
       case Return(a) => f(a)
     }
 
-    def concatOption[B,C](f: B => Logging[Option[C]])(implicit ev: A =:= Option[B]): Logging[Option[C]] = 
-      this concat {
-        case _: None.type => Return(None)
-        case Some(b: B@unchecked) => f(b)
-      }
-
   }
 
   case class Debug[A](msg: String, next: Logging[A]) extends Logging[A]
