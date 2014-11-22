@@ -50,27 +50,34 @@ trait SideEffects{
 
 trait DataTypes{
 
-  /* PURE */ 
+  // sealed trait Option[+T]
+  // case object None extends Option[Nothing]
+  // case class Some[+T](value: T) extends Option[T]
 
-  sealed trait Option[+T]
-  case object None extends Option[Nothing]
-  case class Some[+T](value: T) extends Option[T]
+  sealed trait Logging[A]
+  case class Debug[A](msg: String, next: Logging[A]) extends Logging[A]
+  case class Error[A](msg: String, next: Logging[A]) extends Logging[A]
+  case class Return[A](value: A) extends Logging[A]
 
-  sealed trait Logging[A]{
-    
-    def returned: A = this match {
+}
+
+trait LoggerHelpers1 extends DataTypes{
+
+  implicit class ExtendedLogging1[A](logging: Logging[A]){
+
+    def returned: A = logging match {
       case Debug(_, next) => next.returned
       case Error(_, next) => next.returned
       case Return(a) => a
     }
 
-    def changeValue[B](f: A => B): Logging[B] = this match{
+    def changeValue[B](f: A => B): Logging[B] = logging match{
       case Debug(msg, next) => Debug(msg, next changeValue f)
       case Error(msg, next) => Error(msg, next changeValue f)
       case Return(a) => Return(f(a))
     }
 
-    def concat[B](f: A => Logging[B]): Logging[B] = this match{
+    def concat[B](f: A => Logging[B]): Logging[B] = logging match{
       case Debug(msg, next) => Debug(msg, next concat f)
       case Error(msg, next) => Error(msg, next concat f)
       case Return(a) => f(a)
@@ -78,14 +85,66 @@ trait DataTypes{
 
   }
 
-  case class Debug[A](msg: String, next: Logging[A]) extends Logging[A]
-  case class Error[A](msg: String, next: Logging[A]) extends Logging[A]
-  case class Return[A](value: A) extends Logging[A]
+}
+
+trait OptionFunctions extends DataTypes{
+
+  def parseInt(s: String): Option[Int] = 
+    try{
+      Some(Integer.parseInt(s))
+    } catch {
+      case _: NumberFormatException => 
+        None
+    }
+
+  def factorial(n: Int): Option[Int] = 
+    if (n < 0) 
+      None
+    else if (n == 0) 
+      Some(1)
+    else {
+      factorial(n-1) flatMap {
+        (rec_result: Int) => Some(n * rec_result)
+      }
+    }
+
+  def main: String => Option[Int] = 
+    (s: String) => {
+      parseInt(s) flatMap {
+        (number: Int) => factorial(number)
+      }
+    }
 
 }
 
 
-trait EffectsFunctions extends DataTypes{
+trait LoggerFunctions extends DataTypes with LoggerHelpers1{
+
+  def parseInt(s: String): Logging[Int] = 
+    Debug(s"Parsing $s", 
+      Return(Integer.parseInt(s)))
+
+  def factorial(n: Int): Logging[Int] = 
+    if (n == 0) 
+      Debug(s"factorial($n)=1", Return(1))
+    else {
+      factorial(n-1) concat {
+        (rec_result: Int) => 
+          val result = n * rec_result
+          Debug(s"factorial($n)=$result", Return(result))
+      }
+    }
+
+  def main: String => Logging[Int] = 
+    (s: String) => {
+      parseInt(s) concat {
+        (number: Int) => factorial(number)
+      }
+    }
+
+}
+
+trait EffectsFunctions extends DataTypes with LoggerHelpers1{
 
   def parseInt(s: String): Logging[Option[Int]] = 
     try{
@@ -120,15 +179,17 @@ trait EffectsFunctions extends DataTypes{
 
 }
 
-trait Interpreters{ self: DataTypes => 
-
-    /* IMPURE */ 
+trait OptionInterpreter{ 
 
   def optionInterpreter[T](result: => Option[T]): Unit = 
     result match {
       case None => println("Computation: FAILED")
       case Some(result) => println(s"Computation: $result")
     }
+
+}
+
+trait LoggerInterpreter{ self: DataTypes => 
 
   def loggerInterpreter[T](logging: => Logging[T]): Unit = 
     logging match {
@@ -141,6 +202,10 @@ trait Interpreters{ self: DataTypes =>
       case _ => ()
     }
 
+}
+
+trait EffectInterpreter extends LoggerInterpreter with OptionInterpreter{ self: LoggerHelpers1 => 
+
   def interpreter[T](result: => Logging[Option[T]]): Unit = {
     loggerInterpreter(result)
     optionInterpreter(result.returned)
@@ -148,17 +213,15 @@ trait Interpreters{ self: DataTypes =>
 
 }
 
-object EffectsProgram extends EffectsFunctions with Interpreters
+object EffectsProgram extends EffectsFunctions with EffectInterpreter
 
-trait DataTypeComposition extends DataTypes{
+object LoggerProgram extends LoggerFunctions with LoggerInterpreter
 
-  /* PURE */ 
+object OptionProgram extends OptionFunctions with OptionInterpreter
 
-  // sealed trait Option[+T]
-  // case object None extends Option[Nothing]
-  // case class Some[+T](value: T) extends Option[T]
+trait ExtendedLogging2 extends DataTypes with LoggerHelpers1{
 
-  implicit class ExtendedLogging[A](logging: Logging[A]){
+  implicit class ExtendedLogging2[A](logging: Logging[A]){
 
     def concatOption[B,C](f: B => Logging[Option[C]])(implicit ev: A <:< Option[B]): Logging[Option[C]] = 
       logging concat {
@@ -170,7 +233,7 @@ trait DataTypeComposition extends DataTypes{
 
 }
 
-trait EffectsFunctionsWithComposition extends DataTypeComposition{
+trait EffectsFunctionsWithComposition extends ExtendedLogging2{
 
   def parseInt(s: String): Logging[Option[Int]] = 
     try{
@@ -201,10 +264,15 @@ trait EffectsFunctionsWithComposition extends DataTypeComposition{
 }
 
 
-object EffectCompositionProgram extends EffectsFunctionsWithComposition with Interpreters
+object EffectCompositionProgram extends EffectsFunctionsWithComposition with EffectInterpreter
 
-trait KleisliComposition extends DataTypeComposition{
+trait KleisliComposition extends ExtendedLogging2{
   import scala.language.implicitConversions
+
+  type ~>[A,B] = A => Logging[B]
+
+  def composeK2[A,B,C](g: B ~> C, f: A ~> B): A ~> C = 
+    (a: A) => f(a) concat { (b: B) => g(b) }
 
   def composeK[A,B,C](g: B => Logging[Option[C]], f: A => Logging[Option[B]]): A => Logging[Option[C]] = 
     (a: A) => f(a) concatOption { (b: B) => g(b) }
@@ -253,7 +321,7 @@ trait KleisliCompositionFunctions extends EffectsFunctionsWithComposition with K
 
 }
 
-object KleisliCompositionProgram extends KleisliCompositionFunctions with Interpreters
+object KleisliCompositionProgram extends KleisliCompositionFunctions with EffectInterpreter
 
 
 
