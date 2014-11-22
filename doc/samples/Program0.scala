@@ -14,7 +14,7 @@ trait Program0{
   def main(s: String): Int = 
     factorial(parseInt(s))
 
-  def main: String => Int = 
+  def main0: String => Int = 
     (s: String) => factorial(parseInt(s))
 
 }
