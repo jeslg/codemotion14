@@ -66,15 +66,6 @@ trait DictionaryController extends Controller
   val jsToWordParser: BodyParser[(String,String)] = parse.json map jsToWord
 }
 
-trait DictionaryTestableActions { this: DictionaryController =>
-
-  def testableSearch: State => Request[AnyContent] => Future[Tuple2[Result, State]] =
-    searchBuilder.toTestableAction _
-
-  def testableAdd: State => Request[Tuple2[String, String]] => Future[Tuple2[Result, State]] =
-    addBuilder.toTestableAction _
-}
-
 trait DictionaryUtils { this: DictionaryController =>
 
   implicit class OptionExtensions[T](option: Option[T]) {
