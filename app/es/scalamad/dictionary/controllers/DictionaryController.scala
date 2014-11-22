@@ -49,12 +49,6 @@ trait DictionaryController extends Controller
       .withInterpreter(interpreter _)
       .withResult(_.fold(NotFound("Could not find the requested word"))(Ok(_)))
 
-  def authorizedSearch: Tuple2[String, String] => Repo[Option[String]] = 
-    if_K(
-      cond = nickCanRead, 
-      then_K = getEntry, 
-      else_K = _ => Return(None))
-
   // POST /
 
   def add: Action[(String, String)] = addBuilder.toAction(getState)
@@ -68,12 +62,6 @@ trait DictionaryController extends Controller
 	  Forbidden("Could not add the new word")
 	}
       }
-
-  def authorizedAdd: Tuple2[String, Tuple2[String, String]] => Repo[Option[Unit]] =
-    if_K(
-      cond = nickCanWrite,
-      then_K = setEntry,
-      else_K = _ => Return(None))
   
   val jsToWordParser: BodyParser[(String,String)] = parse.json map jsToWord
 }

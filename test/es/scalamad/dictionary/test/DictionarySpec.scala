@@ -24,28 +24,31 @@ import controllers._
 
 class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
 
-  object FakeDictionaryController extends DictionaryController
-      with DictionaryTestableActions
-      with MapRepoInterpreter
+  object FakeDictionaryController extends DictionaryController with MapRepoInterpreter
 
   import FakeDictionaryController._
 
   def extract(result: Future[(Result, State)]): (Future[Result], State) =
     (result.map(_._1), Await.result(result, 10 seconds)._2)
 
+  def testableSearch: State => Request[AnyContent] => Future[Tuple2[Result, State]] =
+    searchBuilder.toTestableAction _
+
+  def testableAdd: State => Request[Tuple2[String, String]] => Future[Tuple2[Result, State]] =
+    addBuilder.toTestableAction _
+
   "add service" should {
 
     "allow adding new words if the user is empowered to do so" in {
       val request = FakeRequest(
-        POST, 
-        "/", 
-        FakeHeaders(Seq(("user", Seq("mr_proper")))),
+        POST, "/", 
+	FakeHeaders(Seq(("user", Seq("mr_proper")))),
     	("new", "a new definition"))
       val old = State(
 	users = Map("mr_proper" -> User("Mr", "Proper", Option(READ_WRITE))))
 
       val (result, next) = 
-	extract(FakeDictionaryController.testableAdd(old)(request))
+	extract(testableAdd(old)(request))
 
       status(result) mustEqual CREATED
       next mustEqual State(
@@ -55,15 +58,14 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
 
     "fail if the user is not empowered to do so" in {
       val request = FakeRequest(
-    	POST, 
-    	"/", 
+    	POST, "/", 
     	FakeHeaders(Seq(("user", Seq("don_limpio")))),
     	("new", "a brand new definition"))
       val old = State(
 	users = Map("don_limpio" -> User("Don", "Limpio", Option(READ))))
 	
       val (result, next) = 
-	extract(FakeDictionaryController.testableAdd(old)(request))
+	extract(testableAdd(old)(request))
 
       status(result) mustEqual FORBIDDEN
       contentAsString(result) mustEqual "Could not add the new word"
@@ -76,7 +78,7 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
         ("new", "a brand new definition"))
 
       val (result, next) = 
-	extract(FakeDictionaryController.testableAdd(old)(request))
+	extract(testableAdd(old)(request))
 
       status(result) mustEqual FORBIDDEN
       contentAsString(result) mustEqual "Could not add the new word"
@@ -94,7 +96,7 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
         FakeRequest(GET, s"/known").withHeaders(("user" -> "don_limpio"))
 
       val (result, next) =
-	extract(FakeDictionaryController.testableSearch(old)(request))
+	extract(testableSearch(old)(request))
 
       status(result) mustEqual OK
       contentAsString(result) mustEqual "a very well known word"
@@ -110,7 +112,7 @@ class DictionarySpec extends PlaySpec with Results with OneAppPerSuite {
 	FakeRequest(GET, s"/$word").withHeaders(("user" -> "don_limpio"))
 
       val (result, next) =
-	extract(FakeDictionaryController.testableSearch(old)(request))
+	extract(testableSearch(old)(request))
 
       status(result) mustEqual NOT_FOUND
       contentAsString(result) mustEqual s"Could not find the requested word"
