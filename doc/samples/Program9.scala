@@ -3,11 +3,11 @@ package programs
 
 /* Kleisli combinators and conversions */
 
-trait KleisliConversions extends ExtendedLogging2{
+trait KleisliConversions extends LoggingCombinators2{
   import scala.language.implicitConversions
 
   implicit def transformLog[A,B](f: A => Logging[B]): A => Logging[Option[B]] = 
-    (a: A) => f(a) changeValue { (b: B) => Option(b) }
+    (a: A) => f(a) concat { (b: B) => Return(Option(b)) }
 
   implicit def transformOpt[A,B](f: A => Option[B]): A => Logging[Option[B]] = 
     (a: A) => Return(f(a))
@@ -17,7 +17,7 @@ trait KleisliConversions extends ExtendedLogging2{
 
 }
 
-trait KleisliCombinators extends ExtendedLogging2{
+trait KleisliCombinators extends LoggingCombinators2{
   
   def if_K[A,B,C](
     cond: A => Logging[Option[Boolean]])(

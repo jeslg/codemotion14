@@ -3,7 +3,7 @@ package programs
 
 /* Kleisli composition for full effects */
 
-trait KleisliEffect extends ExtendedLogging2{
+trait KleisliEffect extends LoggingCombinators2{
   
   def composeK[A,B,C](g: B => Logging[Option[C]], f: A => Logging[Option[B]]): A => Logging[Option[C]] = 
     (a: A) => f(a) concatOption { (b: B) => g(b) }

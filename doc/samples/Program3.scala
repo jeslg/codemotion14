@@ -2,7 +2,7 @@ package programs
 
 /* Logging effect. */
 
-trait DataTypes{
+trait LoggingInstructions{
 
   sealed trait Logging[A]
   case class Debug[A](msg: String, next: Logging[A]) extends Logging[A]
@@ -11,21 +11,12 @@ trait DataTypes{
 
 }
 
-trait LoggerHelpers1 extends DataTypes{
+trait LoggingCombinators1 extends LoggingInstructions{
+
+  def pure[A](a: A): Logging[A] = 
+    Return(a)
 
   implicit class ExtendedLogging1[A](logging: Logging[A]){
-
-    def returned: A = logging match {
-      case Debug(_, next) => next.returned
-      case Error(_, next) => next.returned
-      case Return(a) => a
-    }
-
-    def changeValue[B](f: A => B): Logging[B] = logging match{
-      case Debug(msg, next) => Debug(msg, next changeValue f)
-      case Error(msg, next) => Error(msg, next changeValue f)
-      case Return(a) => Return(f(a))
-    }
 
     def concat[B](f: A => Logging[B]): Logging[B] = logging match{
       case Debug(msg, next) => Debug(msg, next concat f)
@@ -38,7 +29,7 @@ trait LoggerHelpers1 extends DataTypes{
 }
 
 
-trait LoggerFunctions extends DataTypes with LoggerHelpers1{
+trait LoggerFunctions extends LoggingCombinators1{
 
   def parseInt(s: String): Logging[Int] = 
     Debug(s"Parsing $s", 
@@ -64,7 +55,7 @@ trait LoggerFunctions extends DataTypes with LoggerHelpers1{
 
 }
 
-trait LoggerInterpreter{ self: DataTypes => 
+trait LoggerInterpreter{ self: LoggingInstructions => 
 
   def loggerInterpreter[T](logging: => Logging[T]): Unit = 
     logging match {

@@ -3,7 +3,7 @@ package programs
 
 /* Kleisli composition for logging */
 
-trait KleisliLogging extends LoggerHelpers1{
+trait KleisliLogging extends LoggingCombinators1{
   
   type ~>[A,B] = A => Logging[B]
 

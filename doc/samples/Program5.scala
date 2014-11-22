@@ -3,7 +3,7 @@ package programs
 
 /* Logging plus option effects. */
 
-trait EffectsFunctions extends DataTypes with LoggerHelpers1{
+trait EffectsFunctions extends LoggingCombinators1{
 
   def parseInt(s: String): Logging[Option[Int]] = 
     try{
@@ -38,11 +38,18 @@ trait EffectsFunctions extends DataTypes with LoggerHelpers1{
 
 }
 
-trait EffectInterpreter extends LoggerInterpreter with OptionInterpreter{ self: LoggerHelpers1 => 
+trait EffectInterpreter extends LoggerInterpreter with OptionInterpreter{ self: LoggingCombinators1 => 
+
+  def returned[A](logging: Logging[A]): A = 
+    logging match {
+      case Debug(_, next) => returned(next)
+      case Error(_, next) => returned(next)
+      case Return(a) => a
+    }
 
   def interpreter[T](result: => Logging[Option[T]]): Unit = {
     loggerInterpreter(result)
-    optionInterpreter(result.returned)
+    optionInterpreter(returned(result))
   }
 
 }

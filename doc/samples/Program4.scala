@@ -3,7 +3,7 @@ package programs
 
 /* Option effects */
 
-trait OptionFunctions extends DataTypes{
+trait OptionFunctions extends LoggingInstructions{
 
   def parseInt(s: String): Option[Int] = 
     try{

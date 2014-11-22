@@ -2,7 +2,7 @@ package programs
 
 /* Combining effects. */
 
-trait ExtendedLogging2 extends DataTypes with LoggerHelpers1{
+trait LoggingCombinators2 extends LoggingCombinators1{
 
   implicit class ExtendedLogging2[A](logging: Logging[A]){
 
@@ -16,7 +16,7 @@ trait ExtendedLogging2 extends DataTypes with LoggerHelpers1{
 
 }
 
-trait EffectsFunctionsWithComposition extends ExtendedLogging2{
+trait EffectsFunctionsWithComposition extends LoggingCombinators2{
 
   def parseInt(s: String): Logging[Option[Int]] = 
     try{
