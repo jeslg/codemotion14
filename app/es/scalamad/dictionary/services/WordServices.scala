@@ -12,4 +12,11 @@ trait WordServices {
 
   val removeEntry: String => Repo[Unit] = 
     RemoveEntry(_, Return(()))
+
+  val removeEntry2: String => Repo[Option[String]] = { word =>
+    for {
+      os <- getEntry(word)
+      _  <- removeEntry(word)
+    } yield os
+  }
 }

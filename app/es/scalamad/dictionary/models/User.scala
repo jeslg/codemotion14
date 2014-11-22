@@ -5,5 +5,5 @@ case class User(
     last: String, 
     permission: Option[Permission] = None) {
 
-  def nick = s"${name.toLowerCase}_${last.toLowerCase}"
+  def nick: String = s"${name.toLowerCase}_${last.toLowerCase}"
 }

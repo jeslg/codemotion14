@@ -1,12 +1,10 @@
-package es.scalamad.dictionary.services
+package es.scalamad.dictionary.models
 
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import play.api.cache.Cache
 import play.api.Play.current
-
-import es.scalamad.dictionary.models._
 
 trait RepoInterpreter {
 
