@@ -1,7 +1,7 @@
 codemotion14
 ============
 
-Código que será utilizado en el workshop *Programación funcional con Scala y aplicaciones para la Web* impartido en [CodeMotion 2014](http://2014.codemotion.es/es/).
+Código que será utilizado en el workshop *Programación funcional con Scala y aplicaciones para la Web* impartido en [CodeMotion 2014](http://2014.codemotion.es/es/). Las diapositivas de la charla se encuentran en [este enlace](https://github.com/jeslg/codemotion14/blob/master/doc/codemotion14.pdf).
 
 ### Instrucciones para descargar el software necesario
 

@@ -20,7 +20,7 @@ trait KleisliConversions extends LoggingCombinators2{
 trait KleisliCombinators extends LoggingCombinators2{
   
   def if_K[A,B,C](
-    cond: A => Logging[Option[Boolean]])(
+    cond:   A => Logging[Option[Boolean]])(
     then_K: B => Logging[Option[C]],
     else_K: B => Logging[Option[C]]): A => B => Logging[Option[C]] = 
     (a: A) => (b: B) => 
@@ -29,7 +29,7 @@ trait KleisliCombinators extends LoggingCombinators2{
       }
 
   def if2_K[A,B](
-    cond: A => Logging[Option[Boolean]])(
+    cond:   A => Logging[Option[Boolean]])(
     then_K: A => Logging[Option[B]],
     else_K: A => Logging[Option[B]]): A => Logging[Option[B]] = 
     (a: A) => (if_K(cond)(then_K, else_K))(a)(a)
@@ -41,11 +41,11 @@ trait EffectsFunctionsWithKleisliCombinators extends EffectsFunctionsWithComposi
   with KleisliCombinators
   with KleisliConversions{
 
-  def authenticated: String => Boolean = 
+  def authorized: String => Boolean = 
     (s: String) => s.length < 5
 
   def main2: String => Logging[Option[Int]] = 
-    if2_K(authenticated)(
+    if2_K(authorized)(
       then_K = composeK(factorial, parseInt),
       else_K = { (s: String) => Error(s"Possible number too large: $s", Return(None)) })
 
