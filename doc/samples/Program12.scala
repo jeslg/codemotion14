@@ -13,9 +13,9 @@ trait EffectsFunctionsWithKleisli { this: LoggingInstructions =>
     OptionT(logging)
 
   type EffectT[T] = OptionT[Logging, T]
-  type KleisliEffect[A,B] = Kleisli[EffectT, A, B]
+  type ~>[A,B] = Kleisli[EffectT, A, B]
 
-  def parseInt: KleisliEffect[String,Int] = Kleisli((s: String) => 
+  def parseInt: String ~> Int = Kleisli((s: String) => 
     try{
       debug(s"Parsing $s") returns Option(Integer.parseInt(s))
     } catch {
@@ -24,7 +24,7 @@ trait EffectsFunctionsWithKleisli { this: LoggingInstructions =>
     }
   )
 
-  def factorial: KleisliEffect[Int, Int] = Kleisli( (n: Int) => 
+  def factorial: Int ~> Int = Kleisli( (n: Int) => 
     if (n < 0) 
       error(s"factorial($n) = error: negative number") returns Option.empty[Int]
     else if (n == 0) 
@@ -38,7 +38,7 @@ trait EffectsFunctionsWithKleisli { this: LoggingInstructions =>
     }
   )
 
-  def myMain: KleisliEffect[String,Int] = 
+  def myMain: String ~> Int = 
     factorial <=< parseInt
 
 }
