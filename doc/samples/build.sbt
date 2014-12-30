@@ -12,4 +12,8 @@ libraryDependencies ++= Seq(
 
 scalacOptions += "-feature"
 
+scalacOptions += "-explaintypes"
+
+scalacOptions += "-Xlog-implicits"
+
 initialCommands in console := "import scalaz._, Scalaz._, programs._"
