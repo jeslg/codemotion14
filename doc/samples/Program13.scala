@@ -4,7 +4,7 @@ import scalaz.{Functor, Monad, Free, Coyoneda}
 import Free.FreeC
 import Coyoneda.CoyonedaF
 
-/* Free monads */
+/* Free monads with Coyoneda */
 
 trait LoggingInstructionsC{
 
@@ -82,18 +82,4 @@ trait EffectInterpreterC extends programs.OptionInterpreter{
 object Program13 extends LoggingInstructionsC 
   with EffectsFunctionsC 
   with EffectInterpreterC
-  {
-    import Coyoneda.CoyonedaF
-    // implicit val m = Free.freeMonad[({type λ[α] = Coyoneda[LoggingFunctor, α]})#λ]
-    // implicit val m = Free.freeMonad[CoyonedaF[LoggingFunctor]#A]
-    // import Free.freeMonad
-    // implicitly[Monad[({type f[x]=FreeC[LoggingFunctor,x]})#f]](Free.freeMonad[CoyonedaF[LoggingFunctor]#A])
-    import Free.freeMonad
-    // freeMonad[CoyonedaF[LoggingFunctor]#A]
-    // implicitly[Functor[CoyonedaF[LoggingFunctor]#A]]
-    // implicitly[Monad[({type f[x]=Free[CoyonedaF[LoggingFunctor]#A,x]})#f]]
-    // implicitly[Monad[({type f[x]=Free[CoyonedaF[LoggingFunctor]#A,x]})#f]](Free.freeMonad[CoyonedaF[LoggingFunctor]#A])
-    // implicitly[Monad[({type f[x]=FreeC[LoggingFunctor,x]})#f]]
-  }
-
 
